@@ -1,0 +1,23 @@
+# ESP-IDF build output
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+
+# Secrets — never commit Wi-Fi passwords, Spotify client secret or refresh tokens
+secrets*
+*.secret
+.env
+tools/*.token
+
+# Personal recordings
+*.mp3
+*.m4a
+
+# Editor / OS
+.vscode/
+.idea/
+.cache/
+__pycache__/
+*.pyc
+.DS_Store

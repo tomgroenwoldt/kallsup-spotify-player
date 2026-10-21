@@ -1,0 +1,44 @@
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash: 16 MB
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# PSRAM: 8 MB octal
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+
+# Partitions
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# SNTP: re-sync every 6 h
+CONFIG_LWIP_SNTP_UPDATE_DELAY=21600000
+
+# cspot needs C++ exceptions
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+
+# Console (logs + debug commands) on the native USB Serial/JTAG port
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# cspot: sleeps in 1 ms steps (would round to 0 ticks at 100 Hz)
+CONFIG_FREERTOS_HZ=1000
+# cspot's task stacks live in PSRAM
+CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM=y
+# Wi-Fi/lwIP buffers in PSRAM, to keep internal RAM for TLS and DMA
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+# malloc() above 2 kB goes to PSRAM (default 16 kB): cspot makes many mid-sized
+# allocations that otherwise exhaust internal RAM while streaming
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=2048
+
+# Task watchdog: a hung alarm or audio task reboots the device (10 s)
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# OTA: a new image that doesn't confirm itself is rolled back on the next boot
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y

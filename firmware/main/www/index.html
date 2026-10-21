@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kallsup Alarm</title>
+<style>
+:root {
+  --bg: #f4f2ee; --card: #fff; --text: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8;
+  --accent: #1f6f4a; --accent-text: #fff; --warn: #a15c00; --bad: #b3261e; --ok: #1f6f4a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615; --card: #22221f; --text: #ecebe7; --muted: #a09e97; --line: #36352f;
+    --accent: #4fb986; --accent-text: #0d1f16; --warn: #e2a24b; --bad: #f2867e; --ok: #4fb986;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 8px 0 16px; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.status { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; }
+.status div span { display: block; font-size: 12px; color: var(--muted); }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+label { display: block; margin-bottom: 12px; }
+label > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+input[type=text], input[type=password], input[type=number], input[type=time] {
+  width: 100%; padding: 9px 10px; font: inherit; color: inherit;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+.alarm:first-of-type { border-top: 0; padding-top: 0; }
+.alarm input[type=time] { width: 120px; }
+.days { display: flex; gap: 4px; }
+.days label { margin: 0; }
+.days input { position: absolute; opacity: 0; }
+.days span {
+  display: inline-block; width: 34px; padding: 5px 0; text-align: center; font-size: 13px; margin: 0;
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer; color: var(--muted);
+}
+.days input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.days input:focus-visible + span { outline: 2px solid var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+button {
+  font: inherit; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+button:disabled { opacity: .6; cursor: default; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.savebar {
+  position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
+  padding: 12px 0 16px; background: linear-gradient(transparent, var(--bg) 30%);
+}
+#msg { font-size: 14px; }
+@media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Kallsup Alarm</h1>
+    <span class="clock" id="clock">–</span>
+  </header>
+
+  <section>
+    <h2>Status</h2>
+    <div class="status">
+      <div><span>Time</span><b id="st-time">–</b></div>
+      <div><span>Next alarm</span><b id="st-next">–</b></div>
+      <div><span>Wi-Fi</span><b id="st-wifi">–</b></div>
+      <div><span>Spotify</span><b id="st-spotify">–</b></div>
+      <div><span>Alarm</span><b id="st-alarm">–</b></div>
+      <div><span>Spotify Web API</span><b id="st-api">–</b></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Alarms</h2>
+    <div id="alarms"></div>
+  </section>
+
+  <section>
+    <h2>Music</h2>
+    <label><span>Track</span>
+      <input type="text" id="track_uri" placeholder="spotify:track:… or a Spotify song link" autocomplete="off">
+      <div class="hint">In Spotify: Share → Copy Song Link, then paste it here.</div>
+    </label>
+    <label class="check"><input type="checkbox" id="repeat_track"> Repeat the track until stopped</label>
+  </section>
+
+  <section>
+    <h2>Volume &amp; behaviour</h2>
+    <label><span>Maximum volume: <b id="max_gain_out"></b></span>
+      <input type="range" id="max_gain" min="0" max="1" step="0.05">
+      <div class="hint" id="gain_hint">Above 70 % may overload the 3 W speaker.</div>
+    </label>
+    <div class="row">
+      <label><span>Fade-in (seconds)</span><input type="number" id="fade_in_s" min="0" max="600"></label>
+      <label><span>Snooze (minutes)</span><input type="number" id="snooze_min" min="1" max="60"></label>
+      <label><span>Stop automatically after (minutes)</span><input type="number" id="auto_stop_min" min="1" max="240"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Spotify</h2>
+    <label><span>Client ID</span><input type="text" id="spotify_client_id" autocomplete="off"></label>
+    <label><span>Client secret</span><input type="password" id="spotify_client_secret" autocomplete="new-password"></label>
+    <label><span>Refresh token</span><input type="password" id="spotify_refresh_token" autocomplete="new-password">
+      <div class="hint">From <code>tools/get_refresh_token.py</code>. Secrets are never shown; leave empty to keep.</div>
+    </label>
+  </section>
+
+  <section>
+    <h2>Wi-Fi &amp; device</h2>
+    <div class="row">
+      <label><span>Wi-Fi name (SSID)</span><input type="text" id="wifi_ssid" autocomplete="off"></label>
+      <label><span>Wi-Fi password</span><input type="password" id="wifi_pass" autocomplete="new-password"></label>
+      <label><span>Device name</span><input type="text" id="device_name" maxlength="32"></label>
+      <label><span>Time zone (POSIX)</span><input type="text" id="time_zone" autocomplete="off"></label>
+    </div>
+    <div class="hint">Changing Wi-Fi reconnects the device; this page may then need a reload.</div>
+  </section>
+
+  <section>
+    <h2>Test</h2>
+    <div class="actions">
+      <button data-test="alarm">Test alarm now</button>
+      <button data-test="fallback">Test fallback beep</button>
+      <button data-test="snooze">Snooze</button>
+      <button data-test="stop">Stop</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Firmware</h2>
+    <p class="hint" style="margin-top:0">Running version <b id="fw-version">–</b>. Upload
+      <code>firmware/build/kallsup-alarm.bin</code>; the device restarts and rolls back by itself if the new
+      firmware doesn't reach Wi-Fi and time within 5 minutes.</p>
+    <div class="actions">
+      <input type="file" id="fw-file" accept=".bin" aria-label="Firmware file">
+      <button id="fw-upload">Update firmware</button>
+    </div>
+    <progress id="fw-progress" max="100" value="0" hidden style="width:100%;margin-top:10px"></progress>
+  </section>
+
+  <div class="savebar">
+    <button class="primary" id="save">Save</button>
+    <span id="msg" role="status"></span>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+// Displayed Mon..Sun; value is the bit for tm_wday (0 = Sunday).
+const DAYS = [['Mo', 1], ['Tu', 2], ['We', 3], ['Th', 4], ['Fr', 5], ['Sa', 6], ['Su', 0]];
+const SECRETS = { wifi_pass: 'wifi_pass_set', spotify_client_secret: 'spotify_client_secret_set',
+                  spotify_refresh_token: 'spotify_refresh_token_set' };
+let alarmCount = 0;
+
+function msg(text, cls) { const m = $('msg'); m.textContent = text; m.className = cls || ''; }
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+function renderAlarms(alarms) {
+  alarmCount = alarms.length;
+  $('alarms').innerHTML = alarms.map((a, i) => `
+    <div class="alarm">
+      <label class="check"><input type="checkbox" id="a${i}-on" ${a.enabled ? 'checked' : ''}> Alarm ${i + 1}</label>
+      <input type="time" id="a${i}-time" aria-label="Alarm ${i + 1} time"
+             value="${String(a.hour).padStart(2, '0')}:${String(a.minute).padStart(2, '0')}">
+      <div class="days">${DAYS.map(([name, bit]) => `
+        <label><input type="checkbox" id="a${i}-d${bit}" ${a.weekdays & (1 << bit) ? 'checked' : ''}><span>${name}</span></label>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function showGain() {
+  const g = parseFloat($('max_gain').value);
+  $('max_gain_out').textContent = Math.round(g * 100) + ' %';
+  $('gain_hint').className = 'hint' + (g > 0.7 ? ' warn' : '');
+}
+
+async function loadSettings() {
+  const s = await api('/api/settings');
+  for (const k of ['wifi_ssid', 'time_zone', 'track_uri', 'max_gain', 'fade_in_s', 'snooze_min',
+                   'auto_stop_min', 'spotify_client_id', 'device_name']) $(k).value = s[k];
+  $('repeat_track').checked = s.repeat_track;
+  for (const [k, flag] of Object.entries(SECRETS)) {
+    $(k).value = '';
+    $(k).placeholder = s[flag] ? '•••••• (set)' : 'not set';
+  }
+  $('title').textContent = s.device_name;
+  renderAlarms(s.alarms);
+  showGain();
+}
+
+// Accepts spotify:track:ID or an open.spotify.com/track/ID link.
+function normaliseTrack(v) {
+  v = v.trim();
+  const m = v.match(/open\.spotify\.com\/(?:intl-[\w-]+\/)?track\/([A-Za-z0-9]{22})/);
+  return m ? 'spotify:track:' + m[1] : v;
+}
+
+function collect() {
+  const s = {
+    wifi_ssid: $('wifi_ssid').value.trim(),
+    time_zone: $('time_zone').value.trim(),
+    track_uri: normaliseTrack($('track_uri').value),
+    repeat_track: $('repeat_track').checked,
+    max_gain: parseFloat($('max_gain').value),
+    fade_in_s: parseInt($('fade_in_s').value, 10),
+    snooze_min: parseInt($('snooze_min').value, 10),
+    auto_stop_min: parseInt($('auto_stop_min').value, 10),
+    spotify_client_id: $('spotify_client_id').value.trim(),
+    device_name: $('device_name').value.trim(),
+    alarms: [],
+  };
+  for (const k of Object.keys(SECRETS)) if ($(k).value) s[k] = $(k).value;
+  for (let i = 0; i < alarmCount; i++) {
+    const [h, m] = ($(`a${i}-time`).value || '07:00').split(':').map(Number);
+    let mask = 0;
+    for (const [, bit] of DAYS) if ($(`a${i}-d${bit}`).checked) mask |= 1 << bit;
+    s.alarms.push({ enabled: $(`a${i}-on`).checked, hour: h, minute: m, weekdays: mask });
+  }
+  return s;
+}
+
+async function save() {
+  $('save').disabled = true;
+  msg('Saving…');
+  try {
+    await api('/api/settings', collect());
+    msg('Saved.', 'ok');
+    await loadSettings();
+    refreshStatus();
+  } catch (e) {
+    msg('Not saved: ' + e.message, 'bad');
+  } finally {
+    $('save').disabled = false;
+  }
+}
+
+async function refreshStatus() {
+  try {
+    const st = await api('/api/status');
+    $('clock').textContent = st.time.slice(11, 16);
+    $('st-time').textContent = st.time_synced ? st.time.slice(0, 16) : 'not synced';
+    $('st-time').className = st.time_synced ? '' : 'bad';
+    $('st-next').textContent = st.next_alarm || (st.time_synced ? 'none' : 'unknown (no time)');
+    const w = st.wifi;
+    $('st-wifi').textContent = w.connected ? `${w.ssid} (${w.rssi} dBm)` : (w.ap_active ? 'setup AP active' : 'not connected');
+    $('st-wifi').className = w.connected ? 'ok' : 'bad';
+    $('st-spotify').textContent = st.spotify.logged_in ? 'logged in'
+      : (st.spotify.api_credentials_set ? 'not logged in' : 'not set up');
+    $('st-spotify').className = st.spotify.logged_in ? 'ok' : 'warn';
+    $('st-api').textContent = st.spotify.api_result || (st.spotify.api_credentials_set ? 'ready' : 'not set up');
+    const states = { idle: 'idle', preparing: 'about to ring', ringing_spotify: 'ringing (Spotify)',
+                     ringing_fallback: 'ringing (beep)', snoozed: 'snoozed' };
+    $('st-alarm').textContent = (states[st.alarm_state] || st.alarm_state)
+      + (st.snoozed_until ? ' until ' + st.snoozed_until : '');
+    $('st-alarm').className = st.alarm_state.startsWith('ringing') ? 'warn' : '';
+    $('fw-version').textContent = `${st.version} (${st.partition}, ${st.ota_state})`;
+  } catch (e) {
+    $('st-wifi').textContent = 'device unreachable';
+    $('st-wifi').className = 'bad';
+  }
+}
+
+document.querySelectorAll('[data-test]').forEach(b => b.addEventListener('click', async () => {
+  try {
+    await api('/api/test/' + b.dataset.test, {});
+    msg(b.textContent + ': sent.', 'ok');
+  } catch (e) {
+    msg(b.textContent + ': ' + e.message, 'bad');
+  }
+}));
+$('save').addEventListener('click', save);
+
+// XHR instead of fetch: it reports upload progress.
+$('fw-upload').addEventListener('click', () => {
+  const file = $('fw-file').files[0];
+  if (!file) { msg('Choose a .bin file first.', 'bad'); return; }
+  const xhr = new XMLHttpRequest();
+  const bar = $('fw-progress');
+  xhr.open('POST', '/api/ota');
+  xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+  xhr.upload.onprogress = e => { if (e.lengthComputable) bar.value = 100 * e.loaded / e.total; };
+  xhr.onload = () => {
+    let data = {};
+    try { data = JSON.parse(xhr.responseText); } catch (e) {}
+    if (xhr.status === 200) {
+      msg(`Firmware ${data.version} installed, restarting… reload in ~20 s.`, 'ok');
+    } else {
+      msg('Update failed: ' + (data.error || xhr.statusText), 'bad');
+    }
+    $('fw-upload').disabled = false;
+  };
+  xhr.onerror = () => { msg('Update failed: connection lost.', 'bad'); $('fw-upload').disabled = false; };
+  bar.hidden = false;
+  bar.value = 0;
+  $('fw-upload').disabled = true;
+  msg('Uploading firmware…');
+  xhr.send(file);
+});
+$('max_gain').addEventListener('input', showGain);
+
+loadSettings().catch(e => msg('Could not load settings: ' + e.message, 'bad'));
+refreshStatus();
+setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>
