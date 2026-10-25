@@ -22,7 +22,7 @@ Parts (print orientation):
   grommet - flange down
   lid_test - just the lid (pockets + holes), quick fit check on the Kallsup
 
-Assembly: 4x M2.5 heat-set inserts into the shell bosses, 4x M2.5x8 screws
+Assembly: 4x M2.5 heat-set inserts (4 mm long) into the shell bosses, 4x M2.5x5 screws
 through the plate; the 50 x 70 perfboard on the plate posts through its own
 corner holes (3 mm, 65 x 45 mm apart) with 4x M2.5x6 self-tapping screws.
 
