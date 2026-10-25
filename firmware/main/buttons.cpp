@@ -12,6 +12,7 @@ static const char *TAG = "buttons";
 
 constexpr TickType_t POLL = pdMS_TO_TICKS(10);
 constexpr int STABLE_POLLS = 3;  // 30 ms debounce
+constexpr TickType_t CLICK_GAP = pdMS_TO_TICKS(CLICK_GAP_MS);
 
 struct Input {
     gpio_num_t pin;
@@ -19,13 +20,15 @@ struct Input {
     const char *name;
     bool pressed = false;
     int stable = 0;
+    int clicks = 0;            // in the current series
+    TickType_t released_at = 0;
 };
 
 static Input s_inputs[] = {
     {pins::BUTTON_SNOOZE, Button::SNOOZE, "snooze"},
     {pins::BUTTON_STOP, Button::STOP, "stop"},
 };
-static Handler s_on_press;
+static Handler s_on_click;
 
 static void buttons_task(void *) {
     for (;;) {
@@ -33,22 +36,28 @@ static void buttons_task(void *) {
             const bool down = gpio_get_level(in.pin) == 0;
             if (down == in.pressed) {
                 in.stable = 0;
+                if (!down && in.clicks > 0 && xTaskGetTickCount() - in.released_at >= CLICK_GAP) {
+                    ESP_LOGI(TAG, "%s x%d", in.name, in.clicks);
+                    s_on_click(in.button, in.clicks);
+                    in.clicks = 0;
+                }
                 continue;
             }
             if (++in.stable < STABLE_POLLS) continue;
             in.pressed = down;
             in.stable = 0;
             if (down) {
-                ESP_LOGI(TAG, "%s pressed", in.name);
-                s_on_press(in.button);
+                in.clicks++;
+            } else {
+                in.released_at = xTaskGetTickCount();
             }
         }
         vTaskDelay(POLL);
     }
 }
 
-esp_err_t init(Handler on_press) {
-    s_on_press = on_press;
+esp_err_t init(Handler on_click) {
+    s_on_click = on_click;
     gpio_config_t cfg = {};
     for (const Input &in : s_inputs) cfg.pin_bit_mask |= 1ULL << in.pin;
     cfg.mode = GPIO_MODE_INPUT;

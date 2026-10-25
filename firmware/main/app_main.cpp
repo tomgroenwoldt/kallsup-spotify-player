@@ -49,11 +49,19 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(net::init());
     ESP_ERROR_CHECK(web_ui::init());
     ESP_ERROR_CHECK(alarm_clock::init());
-    ESP_ERROR_CHECK(buttons::init([](buttons::Button b) {
-        if (b == buttons::Button::SNOOZE) {
-            alarm_clock::snooze();
+    ESP_ERROR_CHECK(buttons::init([](buttons::Button b, int clicks) {
+        using spotify_connect::Media;
+        const bool alarm_on = alarm_clock::ringing() || alarm_clock::state() == alarm_clock::State::SNOOZED;
+        if (b == buttons::Button::STOP) {
+            if (alarm_on || !spotify_connect::active()) {
+                alarm_clock::stop();  // also ends test beeps; would cut into Spotify's stream
+            } else if (clicks >= 2) {
+                spotify_connect::media(clicks == 2 ? Media::VOLUME_UP : Media::VOLUME_DOWN);
+            }
+        } else if (alarm_on) {
+            alarm_clock::snooze();  // any number of clicks: a sleepy double press still snoozes
         } else {
-            alarm_clock::stop();
+            spotify_connect::media(clicks == 1 ? Media::PLAY_PAUSE : clicks == 2 ? Media::NEXT : Media::PREVIOUS);
         }
     }));
     ESP_ERROR_CHECK(spotify_connect::init());

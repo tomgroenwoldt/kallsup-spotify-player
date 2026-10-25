@@ -21,6 +21,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "mdns.h"
@@ -39,6 +40,8 @@ static const char *NVS_KEY_CREDS = "creds";  // cspot credentials JSON (reusable
 constexpr size_t SESSION_STACK = 32 * 1024;  // in PSRAM, like cspot's own tasks
 constexpr TickType_t RETRY_DELAY = pdMS_TO_TICKS(5000);
 constexpr size_t MAX_ZEROCONF_BODY = 4096;
+constexpr int VOLUME_MAX = 65535;
+constexpr int VOLUME_STEP = (VOLUME_MAX + 1) / 16;
 
 using EventType = cspot::SpircHandler::EventType;
 
@@ -53,7 +56,7 @@ static std::atomic<bool> s_logged_in{false};
 static std::atomic<bool> s_active{false};
 static std::atomic<bool> s_remote_paused{false};
 static std::atomic<bool> s_alarm_mode{false};
-static std::atomic<int> s_volume{65535 / 2};
+static std::atomic<int> s_volume{VOLUME_MAX / 2};
 static std::mutex s_user_mutex;
 static std::string s_user;
 
@@ -78,6 +81,9 @@ static std::atomic<bool> s_depleted{false};
 static std::atomic<bool> s_flushed{false};
 static std::atomic<bool> s_notify_next{true};
 static std::atomic<int> s_start_offset_ms{0};
+
+// Button commands, run by the session task: cspot isn't thread-safe.
+static QueueHandle_t s_media_queue;
 
 // --- credentials ---
 
@@ -330,6 +336,35 @@ static void poll_playback(cspot::SpircHandler &handler) {
     }
 }
 
+static void run_media(cspot::SpircHandler &handler, Media cmd) {
+    if (!s_active) {
+        ESP_LOGI(TAG, "not the active player, ignoring media button");
+        return;
+    }
+    switch (cmd) {
+        case Media::PLAY_PAUSE:
+            handler.setPause(!s_remote_paused);  // reports back as PLAY_PAUSE
+            break;
+        case Media::NEXT:
+        case Media::PREVIOUS:
+            // What on_event does for NEXT/PREV; cspot only reports remote skips.
+            if (cmd == Media::NEXT ? handler.nextSong() : handler.previousSong()) {
+                forget_streaming_track();
+                audio_out::flush();
+            }
+            break;
+        case Media::VOLUME_UP:
+        case Media::VOLUME_DOWN: {
+            const int step = cmd == Media::VOLUME_UP ? VOLUME_STEP : -VOLUME_STEP;
+            s_volume = std::clamp(s_volume + step, 0, VOLUME_MAX);
+            apply_volume();
+            handler.setRemoteVolume(s_volume);
+            ESP_LOGI(TAG, "volume %d%%", s_volume * 100 / VOLUME_MAX);
+            break;
+        }
+    }
+}
+
 // --- session ---
 
 enum class LoginResult { DECLINED, FAILED };
@@ -373,6 +408,8 @@ static LoginResult run_session(std::shared_ptr<cspot::LoginBlob> blob) {
         for (;;) {
             ctx->session->handlePacket();
             poll_playback(*handler);
+            Media cmd;
+            while (xQueueReceive(s_media_queue, &cmd, 0) == pdTRUE) run_media(*handler, cmd);
         }
     } catch (const std::exception &e) {
         // cspot's tasks can't be torn down safely while running; restart cleanly.
@@ -454,6 +491,8 @@ esp_err_t init() {
 
     s_zeroconf_ready = xSemaphoreCreateBinary();
     ESP_RETURN_ON_FALSE(s_zeroconf_ready, ESP_ERR_NO_MEM, TAG, "semaphore");
+    s_media_queue = xQueueCreate(4, sizeof(Media));
+    ESP_RETURN_ON_FALSE(s_media_queue, ESP_ERR_NO_MEM, TAG, "media queue");
     s_zeroconf_blob = std::make_shared<cspot::LoginBlob>(settings::get().device_name);
 
     httpd_handle_t server = web_ui::server();
@@ -503,6 +542,12 @@ bool active() {
 
 bool remote_paused() {
     return s_remote_paused;
+}
+
+void media(Media cmd) {
+    if (!s_logged_in || xQueueSend(s_media_queue, &cmd, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "media button dropped");
+    }
 }
 
 void set_alarm_mode(bool on) {
