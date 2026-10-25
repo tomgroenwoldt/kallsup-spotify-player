@@ -42,6 +42,9 @@ constexpr TickType_t RETRY_DELAY = pdMS_TO_TICKS(5000);
 constexpr size_t MAX_ZEROCONF_BODY = 4096;
 constexpr int VOLUME_MAX = 65535;
 constexpr int VOLUME_STEP = (VOLUME_MAX + 1) / 16;
+// Button volume steps reach Spotify once they pause this long: a burst of state
+// updates while a button is held has made Spotify move playback to the phone.
+constexpr int64_t VOLUME_REPORT_DELAY_US = 500 * 1000;
 
 using EventType = cspot::SpircHandler::EventType;
 
@@ -84,6 +87,7 @@ static std::atomic<int> s_start_offset_ms{0};
 
 // Button commands, run by the session task: cspot isn't thread-safe.
 static QueueHandle_t s_media_queue;
+static std::atomic<int64_t> s_volume_report_at{0};  // esp_timer time; 0 if nothing to report
 
 // --- credentials ---
 
@@ -298,6 +302,7 @@ static void on_event(std::unique_ptr<cspot::SpircHandler::Event> event) {
             break;
         case EventType::VOLUME:
             s_volume = std::get<int>(event->data);
+            s_volume_report_at = 0;  // Spotify's value wins over an unreported step
             apply_volume();
             break;
         case EventType::DISC:
@@ -356,10 +361,12 @@ static void run_media(cspot::SpircHandler &handler, Media cmd) {
         case Media::VOLUME_UP:
         case Media::VOLUME_DOWN: {
             const int step = cmd == Media::VOLUME_UP ? VOLUME_STEP : -VOLUME_STEP;
-            s_volume = std::clamp(s_volume + step, 0, VOLUME_MAX);
+            const int volume = std::clamp(s_volume + step, 0, VOLUME_MAX);
+            if (volume == s_volume) break;
+            s_volume = volume;
             apply_volume();
-            handler.setRemoteVolume(s_volume);
-            ESP_LOGI(TAG, "volume %d%%", s_volume * 100 / VOLUME_MAX);
+            s_volume_report_at = esp_timer_get_time() + VOLUME_REPORT_DELAY_US;
+            ESP_LOGI(TAG, "volume %d%%", volume * 100 / VOLUME_MAX);
             break;
         }
     }
@@ -410,6 +417,11 @@ static LoginResult run_session(std::shared_ptr<cspot::LoginBlob> blob) {
             poll_playback(*handler);
             Media cmd;
             while (xQueueReceive(s_media_queue, &cmd, 0) == pdTRUE) run_media(*handler, cmd);
+            const int64_t report_at = s_volume_report_at;
+            if (report_at != 0 && esp_timer_get_time() >= report_at) {
+                s_volume_report_at = 0;
+                handler->setRemoteVolume(s_volume);
+            }
         }
     } catch (const std::exception &e) {
         // cspot's tasks can't be torn down safely while running; restart cleanly.

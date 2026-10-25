@@ -39,8 +39,8 @@ enum class Media { PLAY_PAUSE, NEXT, PREVIOUS, VOLUME_UP, VOLUME_DOWN };
 
 // Controls playback like the Spotify app's buttons, while this device is the
 // active player; otherwise ignored. PREVIOUS restarts the track unless it is
-// in its first 3 s. Volume steps are 1/16 of Spotify's range, and the app's
-// slider follows them.
+// in its first 3 s. Volume steps are 1/16 of Spotify's range; the app's
+// slider follows 0.5 s after the last one.
 void media(Media cmd);
 
 // Alarm mode ignores Spotify's volume: the alarm owns the gain.

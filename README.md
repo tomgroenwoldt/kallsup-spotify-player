@@ -163,7 +163,7 @@ You can also pass `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment v
 4. **Snooze** (button GPIO 9 or web UI) silences it for *Snooze* minutes. **Stop** (button GPIO 10, web UI, or pausing it in the Spotify app) ends it. After *Stop automatically after* minutes it stops by itself.
 5. **No time sync:** without a clock synced since boot, alarms don't ring at all, rather than at a guessed time. The LED blinks red.
 
-Outside an alarm, the Snooze button controls Spotify while the clock is the active player: one click plays/pauses, two clicks skip to the next track, three go back (or restart the track if it's past its first 3 s). The Stop button sets the volume: two clicks raise it, three lower it, by 1/16 each; a single click does nothing then. Clicks count as a series while each follows the last within 350 ms, so every button acts 350 ms after its last release.
+Outside an alarm, the Snooze button controls Spotify while the clock is the active player: one click plays/pauses, two clicks skip to the next track, three go back (or restart the track if it's past its first 3 s). The Stop button sets the volume: one click raises it, two lower it, by 1/16 each; keep the last press held and it keeps stepping (every 200 ms, after 400 ms) until you let go. Any other hold counts as one click. Clicks count as a series while each follows the last within 350 ms, so every button acts 350 ms after its last release.
 
 ### Status LED (onboard RGB, GPIO 48)
 

@@ -8,13 +8,20 @@ namespace buttons {
 
 enum class Button { SNOOZE, STOP };
 
-// `clicks` presses in a row, each released within CLICK_GAP_MS of the next.
-using Handler = void (*)(Button button, int clicks);
+enum class Event {
+    CLICKS,  // the series ended: released, then no press for CLICK_GAP_MS
+    HOLD,    // the series' last press has been held for HOLD_MS
+    REPEAT,  // still held, every REPEAT_MS after HOLD; release ends the series
+};
 
-// Polls both buttons every 10 ms and calls `on_click` once a click series ends,
-// CLICK_GAP_MS after its last release.
-esp_err_t init(Handler on_click);
+// `clicks` counts the presses in the series, including a held one.
+using Handler = void (*)(Button button, Event event, int clicks);
+
+// Polls both buttons every 10 ms and reports click series and holds.
+esp_err_t init(Handler on_event);
 
 constexpr int CLICK_GAP_MS = 350;
+constexpr int HOLD_MS = 400;
+constexpr int REPEAT_MS = 200;
 
 }  // namespace buttons
