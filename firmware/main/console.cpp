@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "net.h"
 #include "settings.h"
+#include "spotify_api.h"
 #include "spotify_connect.h"
 
 namespace console {
@@ -148,6 +149,10 @@ static int cmd_spotify(int argc, char **argv) {
         spotify_connect::forget_credentials();
         return 0;
     }
+    if (argc > 1 && strcmp(argv[1], "check") == 0) {
+        spotify_api::prepare_async();  // logs the outcome
+        return 0;
+    }
     if (spotify_connect::logged_in()) {
         printf("logged in as %s, %s\n", spotify_connect::user_name().c_str(),
                spotify_connect::active() ? "active player" : "not the active player");
@@ -190,7 +195,7 @@ esp_err_t init() {
     ESP_RETURN_ON_ERROR(register_cmd("wifi", "Show Wi-Fi status, or store credentials: wifi [ssid] [password]",
                                      cmd_wifi), TAG, "wifi");
     ESP_RETURN_ON_ERROR(register_cmd("time", "Show local time and sync state", cmd_time), TAG, "time");
-    ESP_RETURN_ON_ERROR(register_cmd("spotify", "Spotify status; spotify forget: erase login, restart", cmd_spotify),
+    ESP_RETURN_ON_ERROR(register_cmd("spotify", "Spotify status; spotify check: test the Web API; spotify forget: erase login, restart", cmd_spotify),
                         TAG, "spotify");
     ESP_RETURN_ON_ERROR(register_cmd("tz", "Show or set the POSIX time zone: tz [TZ]", cmd_tz), TAG, "tz");
     ESP_RETURN_ON_ERROR(esp_console_register_help_command(), TAG, "help");

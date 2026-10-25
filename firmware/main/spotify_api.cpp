@@ -23,6 +23,7 @@ static const char *TAG = "spotify_api";
 static const char *API_BASE = "https://api.spotify.com/v1";
 static const char *TOKEN_URL = "https://accounts.spotify.com/api/token";
 constexpr int TIMEOUT_MS = 10000;
+constexpr int CONNECT_ATTEMPTS = 3;
 constexpr size_t MAX_BODY = 16 * 1024;
 constexpr int64_t TOKEN_MARGIN_US = 60LL * 1000 * 1000;  // refresh a minute before expiry
 constexpr uint32_t TASK_STACK = 10 * 1024;               // internal RAM: may write NVS
@@ -56,8 +57,8 @@ struct Response {
     std::string body;
 };
 
-static esp_err_t http(esp_http_client_method_t method, const std::string &url, const std::string &auth,
-                      const char *content_type, const std::string &body, Response &resp) {
+static esp_err_t http_once(esp_http_client_method_t method, const std::string &url, const std::string &auth,
+                           const char *content_type, const std::string &body, Response &resp) {
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
     cfg.method = method;
@@ -95,6 +96,21 @@ static esp_err_t http(esp_http_client_method_t method, const std::string &url, c
              (esp_timer_get_time() - t0) / 1000);
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
+    return err;
+}
+
+// A failed connect (DNS, TCP or TLS handshake) sent nothing yet, so it is safe to retry;
+// a weak Wi-Fi link drops one now and then.
+static esp_err_t http(esp_http_client_method_t method, const std::string &url, const std::string &auth,
+                      const char *content_type, const std::string &body, Response &resp) {
+    esp_err_t err = ESP_OK;
+    for (int attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt++) {
+        resp = Response{};
+        err = http_once(method, url, auth, content_type, body, resp);
+        if (err != ESP_ERR_HTTP_CONNECT || attempt == CONNECT_ATTEMPTS) break;
+        ESP_LOGW(TAG, "connect failed (attempt %d/%d), retrying", attempt, CONNECT_ATTEMPTS);
+        vTaskDelay(pdMS_TO_TICKS(1000 * attempt));
+    }
     return err;
 }
 
