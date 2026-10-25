@@ -11,8 +11,9 @@ idf_component_register(
         "buttons.cpp"
         "console.cpp"
         "status_led.cpp"
+        "captive_dns.cpp"
     INCLUDE_DIRS "."
-    EMBED_TXTFILES "www/index.html"
+    EMBED_TXTFILES "www/index.html" "www/anleitung.html"
     REQUIRES
         esp_driver_i2s
         esp_driver_gpio
@@ -32,4 +33,5 @@ idf_component_register(
         json
         cspot_lib
         console
+        lwip
 )

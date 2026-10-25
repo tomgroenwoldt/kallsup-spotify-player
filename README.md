@@ -151,6 +151,16 @@ You can also pass `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment v
 4. **Pair once from a phone** (from Phase 5 on): open Spotify, *Connect to a device* → **Kallsup Alarm**, play anything. The device stores its Spotify login and won't need the phone again, even after power loss.
 5. Press **Test alarm now** in the web UI. The track should start on the Kallsup.
 
+### 7. Hand it over
+
+The web page and the printable guide are in German, for a non-technical user who only connects it to their own Wi-Fi.
+
+1. Do steps 4–6 yourself, then pair with the Spotify account that will own the alarm, set the track and an alarm.
+2. Print the guide: open <http://kallsup-alarm.local/anleitung> → **Drucken** (2 × A4). The same page is linked from the web page under *Hilfe*. It is generated: edit `tools/guide/anleitung.tpl.html` or the line drawings in `tools/guide/sketches.py`, then run `python3 tools/guide/build_guide.py` (needs `qrencode`).
+3. Unplug and hand over. At their place the stored Wi-Fi fails, so after 60 s the setup AP `Kallsup-Setup` opens. Its captive portal brings up a Wi-Fi picker on the phone by itself (DNS answers every name with 192.168.4.1, unknown paths redirect to `/`). After a successful connection the page shows the new address, and the AP stays up for 60 s more so the user can read it.
+
+Technical settings (Spotify keys, Wi-Fi fields, device name, time zone, beep test, firmware upload) are under *Erweitert* at the bottom of the web page.
+
 ---
 
 ## Using it
@@ -180,7 +190,7 @@ If your board's LED stays dark, it may be on GPIO 38. Change `STATUS_LED` in `fi
 ### Firmware updates (OTA)
 
 1. Build with `idf.py build`.
-2. On the web page under *Firmware*, upload `firmware/build/kallsup-alarm.bin`. The device restarts; the new version is shown with `(ota_x, pending verify)`, then `valid` once Wi-Fi and time work.
+2. On the web page under *Erweitert → Firmware*, upload `firmware/build/kallsup-alarm.bin`. The device restarts; the new version is shown with `(ota_x, pending verify)`, then `valid` once Wi-Fi and time work.
 3. If the new firmware doesn't reach Wi-Fi and time within 5 minutes, it restarts and the bootloader rolls back to the previous version.
 4. Updates are refused while an alarm rings. A USB flash (`idf.py flash`) always works as a fallback.
 

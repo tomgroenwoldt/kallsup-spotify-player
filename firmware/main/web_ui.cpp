@@ -5,6 +5,7 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <vector>
 
 #include "alarm.h"
 #include "audio_out.h"
@@ -17,6 +18,7 @@
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "net.h"
 #include "settings.h"
 #include "spotify_api.h"
@@ -24,6 +26,8 @@
 
 extern const char index_html_start[] asm("_binary_index_html_start");
 extern const char index_html_end[] asm("_binary_index_html_end");
+extern const char anleitung_html_start[] asm("_binary_anleitung_html_start");
+extern const char anleitung_html_end[] asm("_binary_anleitung_html_end");
 
 namespace web_ui {
 
@@ -87,13 +91,78 @@ static std::string format_local(time_t t, const char *fmt) {
     return buf;
 }
 
-// --- GET / ---
+// "heute 07:00", "morgen 07:00", or "Mo 27.10. 07:00".
+static std::string format_alarm_de(time_t t, time_t now) {
+    static const char *DAYS[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+    struct tm tm, today;
+    localtime_r(&t, &tm);
+    localtime_r(&now, &today);
+    const time_t tomorrow_t = now + 24 * 3600;
+    struct tm tomorrow;
+    localtime_r(&tomorrow_t, &tomorrow);
+    char buf[32];
+    if (tm.tm_yday == today.tm_yday && tm.tm_year == today.tm_year) {
+        snprintf(buf, sizeof(buf), "heute %02d:%02d", tm.tm_hour, tm.tm_min);
+    } else if (tm.tm_yday == tomorrow.tm_yday && tm.tm_year == tomorrow.tm_year) {
+        snprintf(buf, sizeof(buf), "morgen %02d:%02d", tm.tm_hour, tm.tm_min);
+    } else {
+        snprintf(buf, sizeof(buf), "%s %02d.%02d. %02d:%02d", DAYS[tm.tm_wday], tm.tm_mday, tm.tm_mon + 1,
+                 tm.tm_hour, tm.tm_min);
+    }
+    return buf;
+}
+
+// --- GET / and /anleitung ---
 
 static esp_err_t get_index(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
     // EMBED_TXTFILES appends a NUL terminator
     return httpd_resp_send(req, index_html_start, index_html_end - index_html_start - 1);
+}
+
+static esp_err_t get_guide(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    return httpd_resp_send(req, anleitung_html_start, anleitung_html_end - anleitung_html_start - 1);
+}
+
+// Anything else, e.g. a phone's captive-portal check on the setup AP, goes to
+// the main page. iOS only shows the portal if the response has a body.
+static esp_err_t redirect_404(httpd_req_t *req, httpd_err_code_t) {
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/");
+    return httpd_resp_sendstr(req, "Weiter zur Einrichtung: <a href=\"/\">Kallsup Wecker</a>");
+}
+
+// --- GET /api/wifi/scan ---
+
+static esp_err_t get_wifi_scan(httpd_req_t *req) {
+    wifi_scan_config_t scan = {};
+    esp_err_t err = esp_wifi_scan_start(&scan, true);  // blocks ~2 s
+    if (err != ESP_OK) {
+        return send_error(req, "503 Service Unavailable", std::string("scan failed: ") + esp_err_to_name(err));
+    }
+    uint16_t count = 0;
+    esp_wifi_scan_get_ap_num(&count);
+    std::vector<wifi_ap_record_t> aps(count);
+    if (count) esp_wifi_scan_get_ap_records(&count, aps.data());
+    aps.resize(count);
+    std::sort(aps.begin(), aps.end(), [](const auto &a, const auto &b) { return a.rssi > b.rssi; });
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *list = cJSON_AddArrayToObject(root, "networks");
+    std::vector<std::string> seen;
+    for (const wifi_ap_record_t &ap : aps) {
+        const std::string ssid(reinterpret_cast<const char *>(ap.ssid));
+        if (ssid.empty() || std::find(seen.begin(), seen.end(), ssid) != seen.end()) continue;
+        seen.push_back(ssid);
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddStringToObject(item, "ssid", ssid.c_str());
+        cJSON_AddNumberToObject(item, "rssi", ap.rssi);
+        cJSON_AddBoolToObject(item, "locked", ap.authmode != WIFI_AUTH_OPEN);
+        cJSON_AddItemToArray(list, item);
+    }
+    return send_json(req, root);
 }
 
 // --- GET /api/settings ---
@@ -200,6 +269,21 @@ static esp_err_t post_settings(httpd_req_t *req) {
 
 // --- GET /api/status ---
 
+static const char *reset_reason_name(esp_reset_reason_t r) {
+    switch (r) {
+        case ESP_RST_POWERON: return "power on";
+        case ESP_RST_EXT: return "reset pin";
+        case ESP_RST_SW: return "restart";
+        case ESP_RST_PANIC: return "crash";
+        case ESP_RST_INT_WDT: return "interrupt watchdog";
+        case ESP_RST_TASK_WDT: return "task watchdog";
+        case ESP_RST_WDT: return "watchdog";
+        case ESP_RST_BROWNOUT: return "brownout";
+        case ESP_RST_USB: return "usb";
+        default: return "other";
+    }
+}
+
 static esp_err_t get_status(httpd_req_t *req) {
     const settings::Config c = settings::get();
     const time_t now = time(nullptr);
@@ -216,6 +300,10 @@ static esp_err_t get_status(httpd_req_t *req) {
     cJSON_AddStringToObject(wifi, "ip", ns.ip.c_str());
     cJSON_AddNumberToObject(wifi, "rssi", ns.rssi);
     cJSON_AddBoolToObject(wifi, "ap_active", ns.ap_active);
+    cJSON_AddStringToObject(wifi, "error", ns.error == net::WifiError::WRONG_PASSWORD ? "wrong_password"
+                                           : ns.error == net::WifiError::NOT_FOUND    ? "not_found"
+                                           : ns.error == net::WifiError::OTHER        ? "other"
+                                                                                      : "");
 
     cJSON *spotify = cJSON_AddObjectToObject(root, "spotify");
     cJSON_AddBoolToObject(spotify, "logged_in", spotify_connect::logged_in());
@@ -229,7 +317,7 @@ static esp_err_t get_status(httpd_req_t *req) {
     // Without a synced clock the next alarm can't be known.
     const time_t next = synced ? alarm_clock::next_alarm(c, now) : 0;
     if (next) {
-        cJSON_AddStringToObject(root, "next_alarm", format_local(next, "%a %d.%m. %H:%M").c_str());
+        cJSON_AddStringToObject(root, "next_alarm", format_alarm_de(next, now).c_str());
     } else {
         cJSON_AddNullToObject(root, "next_alarm");
     }
@@ -240,6 +328,7 @@ static esp_err_t get_status(httpd_req_t *req) {
     }
     cJSON_AddBoolToObject(root, "amp_on", audio_out::amp_enabled());
     cJSON_AddNumberToObject(root, "uptime_s", (double)(esp_timer_get_time() / 1000000));
+    cJSON_AddStringToObject(root, "reset_reason", reset_reason_name(esp_reset_reason()));
     cJSON_AddNumberToObject(root, "heap_internal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     cJSON_AddNumberToObject(root, "heap_internal_min", heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
     cJSON_AddNumberToObject(root, "heap_psram", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
@@ -384,11 +473,13 @@ esp_err_t init() {
     config.stack_size = 8192;
     config.lru_purge_enable = true;
     config.uri_match_fn = httpd_uri_match_wildcard;
-    config.max_uri_handlers = 12;
+    config.max_uri_handlers = 16;
     ESP_RETURN_ON_ERROR(httpd_start(&s_server, &config), TAG, "httpd_start");
 
     const httpd_uri_t routes[] = {
         {.uri = "/", .method = HTTP_GET, .handler = get_index, .user_ctx = nullptr},
+        {.uri = "/anleitung", .method = HTTP_GET, .handler = get_guide, .user_ctx = nullptr},
+        {.uri = "/api/wifi/scan", .method = HTTP_GET, .handler = get_wifi_scan, .user_ctx = nullptr},
         {.uri = "/api/settings", .method = HTTP_GET, .handler = get_settings, .user_ctx = nullptr},
         {.uri = "/api/settings", .method = HTTP_POST, .handler = post_settings, .user_ctx = nullptr},
         {.uri = "/api/status", .method = HTTP_GET, .handler = get_status, .user_ctx = nullptr},
@@ -398,6 +489,7 @@ esp_err_t init() {
     for (const httpd_uri_t &route : routes) {
         ESP_RETURN_ON_ERROR(httpd_register_uri_handler(s_server, &route), TAG, "route %s", route.uri);
     }
+    ESP_RETURN_ON_ERROR(httpd_register_err_handler(s_server, HTTPD_404_NOT_FOUND, redirect_404), TAG, "404");
     ESP_LOGI(TAG, "listening on port %d", config.server_port);
     return ESP_OK;
 }

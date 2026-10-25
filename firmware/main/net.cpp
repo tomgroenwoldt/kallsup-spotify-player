@@ -12,6 +12,7 @@
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 #include "esp_timer.h"
+#include "captive_dns.h"
 #include "esp_wifi.h"
 #include "mdns.h"
 #include "settings.h"
@@ -26,6 +27,8 @@ constexpr uint64_t RETRY_MIN_US = 5ULL * 1000 * 1000;
 constexpr uint64_t RETRY_MAX_US = 60ULL * 1000 * 1000;
 // Station retries hop channels and disturb clients on the setup AP, so retry less often while it runs.
 constexpr uint64_t RETRY_WITH_AP_US = 30ULL * 1000 * 1000;
+// Once connected, the setup AP stays this long, so the setup page can still show the result.
+constexpr uint64_t AP_LINGER_US = 60ULL * 1000 * 1000;
 // Delay before applying new Wi-Fi credentials, so the HTTP response that saved them still gets out.
 constexpr uint64_t RECONNECT_DELAY_US = 1000ULL * 1000;
 
@@ -33,10 +36,12 @@ static esp_netif_t *s_sta_netif;
 static esp_timer_handle_t s_fallback_timer;
 static esp_timer_handle_t s_retry_timer;
 static esp_timer_handle_t s_reconnect_timer;
+static esp_timer_handle_t s_ap_stop_timer;
 static std::atomic<bool> s_connected{false};
 static std::atomic<bool> s_ap_active{false};
 static std::atomic<bool> s_have_creds{false};
 static std::atomic<bool> s_time_synced{false};
+static std::atomic<WifiError> s_error{WifiError::NONE};  // of the last failed attempt
 static uint64_t s_retry_us = RETRY_MIN_US;  // next back-off delay, event task only
 
 static void start_ap() {
@@ -51,11 +56,13 @@ static void start_ap() {
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_config(WIFI_IF_AP, &ap));
     s_ap_active = true;
+    captive_dns::start();
     ESP_LOGW(TAG, "no Wi-Fi connection, started setup AP \"%s\" (http://192.168.4.1)", AP_SSID);
 }
 
 static void stop_ap() {
     if (!s_ap_active) return;
+    captive_dns::stop();
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_mode(WIFI_MODE_STA));
     s_ap_active = false;
     ESP_LOGI(TAG, "setup AP stopped");
@@ -91,6 +98,26 @@ static void on_reconnect_timer(void *) {
     reconnect();
 }
 
+static void on_ap_stop_timer(void *) {
+    if (s_connected) stop_ap();
+}
+
+static WifiError error_from_reason(uint8_t reason) {
+    switch (reason) {
+        case WIFI_REASON_AUTH_FAIL:
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+        case WIFI_REASON_HANDSHAKE_TIMEOUT:
+            return WifiError::WRONG_PASSWORD;
+        case WIFI_REASON_NO_AP_FOUND:
+        case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+        case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+        case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+            return WifiError::NOT_FOUND;
+        default:
+            return WifiError::OTHER;
+    }
+}
+
 static void on_settings_changed(const settings::Config &old_cfg, const settings::Config &cfg) {
     if (cfg.time_zone != old_cfg.time_zone) apply_time_zone();
     if (cfg.device_name != old_cfg.device_name) mdns_instance_name_set(cfg.device_name.c_str());
@@ -107,6 +134,7 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data) {
         const auto *ev = static_cast<wifi_event_sta_disconnected_t *>(data);
         ESP_LOGW(TAG, "%s (reason %d)", s_connected ? "disconnected" : "connect failed", ev->reason);
         s_connected = false;
+        s_error = error_from_reason(ev->reason);
         if (!s_have_creds) return;
         if (!esp_timer_is_active(s_fallback_timer)) esp_timer_start_once(s_fallback_timer, AP_FALLBACK_US);
         esp_timer_stop(s_retry_timer);
@@ -118,9 +146,13 @@ static void on_event(void *, esp_event_base_t base, int32_t id, void *data) {
         const auto *ev = static_cast<ip_event_got_ip_t *>(data);
         ESP_LOGI(TAG, "connected, IP " IPSTR ", http://%s.local", IP2STR(&ev->ip_info.ip), HOSTNAME);
         s_connected = true;
+        s_error = WifiError::NONE;
         s_retry_us = RETRY_MIN_US;
         esp_timer_stop(s_fallback_timer);
-        stop_ap();
+        if (s_ap_active) {
+            esp_timer_stop(s_ap_stop_timer);
+            esp_timer_start_once(s_ap_stop_timer, AP_LINGER_US);
+        }
     }
 }
 
@@ -168,6 +200,10 @@ esp_err_t init() {
     reconnect_args.callback = on_reconnect_timer;
     reconnect_args.name = "wifi_reconnect";
     ESP_RETURN_ON_ERROR(esp_timer_create(&reconnect_args, &s_reconnect_timer), TAG, "timer");
+    esp_timer_create_args_t ap_stop_args = {};
+    ap_stop_args.callback = on_ap_stop_timer;
+    ap_stop_args.name = "wifi_ap_stop";
+    ESP_RETURN_ON_ERROR(esp_timer_create(&ap_stop_args, &s_ap_stop_timer), TAG, "timer");
     settings::on_change(on_settings_changed);
 
     apply_time_zone();
@@ -193,6 +229,7 @@ esp_err_t init() {
 void reconnect() {
     esp_timer_stop(s_retry_timer);
     s_connected = false;
+    s_error = WifiError::NONE;
     esp_wifi_disconnect();
     s_have_creds = load_sta_config();
     if (!s_have_creds) return;
@@ -214,6 +251,7 @@ Status status() {
     Status st;
     st.sta_connected = s_connected;
     st.ap_active = s_ap_active;
+    st.error = s_error;
     if (st.sta_connected) {
         wifi_ap_record_t ap;
         if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {

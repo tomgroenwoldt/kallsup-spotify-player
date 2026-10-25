@@ -1,60 +1,88 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kallsup Alarm</title>
+<title>Kallsup Wecker</title>
 <style>
 :root {
   --bg: #f4f2ee; --card: #fff; --text: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8;
   --accent: #1f6f4a; --accent-text: #fff; --warn: #a15c00; --bad: #b3261e; --ok: #1f6f4a;
+  --ok-bg: #e3f1e8; --warn-bg: #fbeedb; --bad-bg: #f9e1df; --info-bg: #eceae4;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #161615; --card: #22221f; --text: #ecebe7; --muted: #a09e97; --line: #36352f;
     --accent: #4fb986; --accent-text: #0d1f16; --warn: #e2a24b; --bad: #f2867e; --ok: #4fb986;
+    --ok-bg: #1b3326; --warn-bg: #3a2c17; --bad-bg: #3d1f1c; --info-bg: #2a2a26;
   }
 }
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-main { max-width: 720px; margin: 0 auto; padding: 16px; }
-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 8px 0 16px; }
+main { max-width: 640px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 8px 0 14px; }
 h1 { font-size: 22px; margin: 0; }
-h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-.clock { font-variant-numeric: tabular-nums; color: var(--muted); }
-.status { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; }
-.status div span { display: block; font-size: 12px; color: var(--muted); }
+h2 { font-size: 18px; margin: 0 0 12px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.clock { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
-label { display: block; margin-bottom: 12px; }
-label > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-input[type=text], input[type=password], input[type=number], input[type=time] {
-  width: 100%; padding: 9px 10px; font: inherit; color: inherit;
-  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+[hidden] { display: none !important; }
+
+.banner { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; font-size: 17px; background: var(--info-bg); }
+.banner.ok { background: var(--ok-bg); color: var(--text); }
+.banner.warn { background: var(--warn-bg); color: var(--text); }
+.banner.bad { background: var(--bad-bg); color: var(--text); }
+.banner b { display: block; font-size: 19px; }
+.banner .actions { margin-top: 12px; }
+.banner button { font-size: 18px; padding: 14px 22px; flex: 1; }
+
+label { display: block; margin-bottom: 14px; }
+label > span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 5px; }
+input[type=text], input[type=password], input[type=number], input[type=time], select {
+  width: 100%; padding: 11px 12px; font: inherit; color: inherit;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
 }
-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
-.check { display: flex; align-items: center; gap: 8px; }
-.check input { width: 18px; height: 18px; accent-color: var(--accent); }
-.alarm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 0; border-top: 1px solid var(--line); }
-.alarm:first-of-type { border-top: 0; padding-top: 0; }
-.alarm input[type=time] { width: 120px; }
-.days { display: flex; gap: 4px; }
-.days label { margin: 0; }
+.check { display: flex; align-items: center; gap: 10px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.hint { font-size: 14px; color: var(--muted); margin-top: 5px; }
+
+.alarm { padding: 14px 0; border-top: 1px solid var(--line); }
+.alarm:first-child { border-top: 0; padding-top: 0; }
+.alarm-top { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.time { display: flex; align-items: center; gap: 4px; font-size: 20px; font-weight: 600; }
+.time select { width: auto; font-size: 20px; padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.alarm.off .time, .alarm.off .days { opacity: .45; }
+.switch { position: relative; display: inline-block; width: 52px; height: 30px; margin: 0; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch span {
+  position: absolute; inset: 0; margin: 0; border-radius: 30px; background: var(--line); transition: background .15s; pointer-events: none;
+}
+.switch span::after {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; transition: transform .15s; box-shadow: 0 1px 2px #0004;
+}
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(22px); }
+.switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.alarm-state { font-size: 14px; color: var(--muted); }
+.days { display: flex; gap: 5px; flex-wrap: wrap; }
+.days label { margin: 0; position: relative; }
 .days input { position: absolute; opacity: 0; }
 .days span {
-  display: inline-block; width: 34px; padding: 5px 0; text-align: center; font-size: 13px; margin: 0;
-  border: 1px solid var(--line); border-radius: 6px; cursor: pointer; color: var(--muted);
+  display: inline-block; width: 40px; padding: 7px 0; text-align: center; font-size: 15px; margin: 0;
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--muted);
 }
 .days input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .days input:focus-visible + span { outline: 2px solid var(--accent); }
-input[type=range] { width: 100%; accent-color: var(--accent); }
-.hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 button {
-  font: inherit; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  font: inherit; padding: 11px 18px; border-radius: 10px; cursor: pointer;
   border: 1px solid var(--line); background: var(--card); color: var(--text);
 }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
@@ -64,113 +92,205 @@ button:disabled { opacity: .6; cursor: default; }
   position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
   padding: 12px 0 16px; background: linear-gradient(transparent, var(--bg) 30%);
 }
-#msg { font-size: 14px; }
+.savebar button { font-size: 17px; padding: 13px 28px; }
+#msg { font-size: 15px; }
+.dirty #save { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.knobs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.knob { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.knob h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 0 0 8px; }
+.knob h3 svg { flex: none; }
+.knob dl { margin: 0; font-size: 15px; }
+.knob dt { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.knob dd { margin: 0; }
+@media (max-width: 480px) { .knobs { grid-template-columns: 1fr; } }
+a { color: var(--accent); }
+
+details > summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; }
+details > summary::before { content: "▸ "; color: var(--muted); }
+details[open] > summary::before { content: "▾ "; }
+details[open] > summary { margin-bottom: 14px; }
+details h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 10px; }
+.tech { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; font-size: 14px; }
+.tech span { display: block; font-size: 12px; color: var(--muted); }
+.pw { display: flex; gap: 8px; }
+.pw input { flex: 1; }
+.big { font-size: 18px; padding: 14px 22px; width: 100%; }
+.result { margin-top: 14px; padding: 12px 14px; border-radius: 10px; }
+.result.ok { background: var(--ok-bg); color: var(--text); }
+.result.bad { background: var(--bad-bg); color: var(--text); }
+.result.wait { background: var(--info-bg); color: var(--text); }
+.addr { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; }
 @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <h1 id="title">Kallsup Alarm</h1>
-    <span class="clock" id="clock">–</span>
+    <h1 id="title">Kallsup Wecker</h1>
+    <span class="clock" id="clock"></span>
   </header>
 
-  <section>
-    <h2>Status</h2>
-    <div class="status">
-      <div><span>Time</span><b id="st-time">–</b></div>
-      <div><span>Next alarm</span><b id="st-next">–</b></div>
-      <div><span>Wi-Fi</span><b id="st-wifi">–</b></div>
-      <div><span>Spotify</span><b id="st-spotify">–</b></div>
-      <div><span>Alarm</span><b id="st-alarm">–</b></div>
-      <div><span>Spotify Web API</span><b id="st-api">–</b></div>
-    </div>
-  </section>
+  <div class="banner" id="banner" role="status"><b>Verbinde …</b></div>
 
-  <section>
-    <h2>Alarms</h2>
-    <div id="alarms"></div>
-  </section>
-
-  <section>
-    <h2>Music</h2>
-    <label><span>Track</span>
-      <input type="text" id="track_uri" placeholder="spotify:track:… or a Spotify song link" autocomplete="off">
-      <div class="hint">In Spotify: Share → Copy Song Link, then paste it here.</div>
+  <!-- Shown instead of everything else while the device only has its setup hotspot. -->
+  <section id="setup" hidden>
+    <h2>WLAN einrichten</h2>
+    <p class="hint" style="margin-top:0">Wähle dein WLAN zu Hause und gib das Passwort ein.</p>
+    <label><span>Dein WLAN</span>
+      <select id="setup-ssid"><option value="">Suche WLANs …</option></select>
     </label>
-    <label class="check"><input type="checkbox" id="repeat_track"> Repeat the track until stopped</label>
-  </section>
-
-  <section>
-    <h2>Volume &amp; behaviour</h2>
-    <label><span>Maximum volume: <b id="max_gain_out"></b></span>
-      <input type="range" id="max_gain" min="0" max="1" step="0.05">
-      <div class="hint" id="gain_hint">Above 70 % may overload the 3 W speaker.</div>
+    <label id="setup-other-box" hidden><span>Name des WLANs</span>
+      <input type="text" id="setup-other" autocomplete="off" autocapitalize="none">
     </label>
-    <div class="row">
-      <label><span>Fade-in (seconds)</span><input type="number" id="fade_in_s" min="0" max="600"></label>
-      <label><span>Snooze (minutes)</span><input type="number" id="snooze_min" min="1" max="60"></label>
-      <label><span>Stop automatically after (minutes)</span><input type="number" id="auto_stop_min" min="1" max="240"></label>
-    </div>
-  </section>
-
-  <section>
-    <h2>Spotify</h2>
-    <label><span>Client ID</span><input type="text" id="spotify_client_id" autocomplete="off"></label>
-    <label><span>Client secret</span><input type="password" id="spotify_client_secret" autocomplete="new-password"></label>
-    <label><span>Refresh token</span><input type="password" id="spotify_refresh_token" autocomplete="new-password">
-      <div class="hint">From <code>tools/get_refresh_token.py</code>. Secrets are never shown; leave empty to keep.</div>
+    <label id="setup-pass-box"><span>WLAN-Passwort</span>
+      <div class="pw">
+        <input type="password" id="setup-pass" autocomplete="off" autocapitalize="none">
+        <button type="button" id="setup-show">Zeigen</button>
+      </div>
+      <div class="hint">Steht oft auf der Rückseite deines Routers.</div>
     </label>
+    <button class="primary big" id="setup-connect">Verbinden</button>
+    <p style="margin:10px 0 0"><button type="button" id="setup-rescan">WLANs neu suchen</button></p>
+    <div class="result" id="setup-result" hidden></div>
   </section>
 
-  <section>
-    <h2>Wi-Fi &amp; device</h2>
-    <div class="row">
-      <label><span>Wi-Fi name (SSID)</span><input type="text" id="wifi_ssid" autocomplete="off"></label>
-      <label><span>Wi-Fi password</span><input type="password" id="wifi_pass" autocomplete="new-password"></label>
-      <label><span>Device name</span><input type="text" id="device_name" maxlength="32"></label>
-      <label><span>Time zone (POSIX)</span><input type="text" id="time_zone" autocomplete="off"></label>
+  <div id="app">
+    <section>
+      <h2>Wecker</h2>
+      <div id="alarms"></div>
+      <button id="test-alarm">Wecker jetzt testen</button>
+      <div class="hint">Klingelt sofort mit deinem Lied. Mit dem Aus-Knopf oder hier oben wieder ausschalten.</div>
+    </section>
+
+    <section>
+      <h2>Lied</h2>
+      <label><span>Spotify-Link zum Lied</span>
+        <input type="text" id="track_uri" placeholder="https://open.spotify.com/track/…" autocomplete="off" autocapitalize="none">
+        <div class="hint">In Spotify beim Lied auf <b>⋯</b> → <b>Teilen</b> → <b>Link kopieren</b> tippen und hier einfügen.</div>
+      </label>
+      <label class="check"><input type="checkbox" id="repeat_track"> Lied wiederholen, bis ich ausschalte</label>
+    </section>
+
+    <section>
+      <h2>Lautstärke &amp; Schlummern</h2>
+      <label><span>Weckerlautstärke: <b id="max_gain_out"></b></span>
+        <input type="range" id="max_gain" min="0.1" max="0.7" step="0.05">
+      </label>
+      <div class="row">
+        <label><span>Langsam lauter werden über (Sekunden)</span><input type="number" id="fade_in_s" min="0" max="600" inputmode="numeric"></label>
+        <label><span>Schlummern für (Minuten)</span><input type="number" id="snooze_min" min="1" max="60" inputmode="numeric"></label>
+        <label><span>Automatisch aus nach (Minuten)</span><input type="number" id="auto_stop_min" min="1" max="240" inputmode="numeric"></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Hilfe</h2>
+      <div class="knobs">
+        <div class="knob">
+          <h3><svg width="22" height="22" viewBox="-11 -11 22 22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><circle r="10"/><path d="M-2.4,-3.6 L3.9,0 L-2.4,3.6 Z"/></svg>Schlummern <span class="hint" style="margin:0">(links)</span></h3>
+          <dl>
+            <dt>Wecker klingelt</dt><dd>später nochmal wecken</dd>
+            <dt>Musik läuft</dt><dd>1×: Pause / weiter<br>2×: nächstes Lied<br>3×: Lied zurück</dd>
+          </dl>
+        </div>
+        <div class="knob">
+          <h3><svg width="22" height="22" viewBox="-11 -11 22 22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><circle r="10"/><path d="M-2.5,-2.1 L2.5,2.1 L0,4.3 L0,-4.3 L2.5,-2.1 L-2.5,2.1"/></svg>Aus <span class="hint" style="margin:0">(rechts)</span></h3>
+          <dl>
+            <dt>Wecker klingelt</dt><dd>Wecker aus</dd>
+            <dt>Musik läuft</dt><dd>1×: lauter · 2×: leiser<br>halten: lauter, bis du loslässt<br>1× drücken, dann halten: leiser</dd>
+          </dl>
+        </div>
+      </div>
+      <p class="hint">2× und 3× bedeutet: schnell hintereinander drücken.</p>
+      <p style="margin:12px 0 0"><a href="/anleitung">Anleitung ansehen oder ausdrucken</a></p>
+    </section>
+
+    <section>
+      <details id="advanced">
+        <summary>Erweitert</summary>
+        <p class="hint" style="margin-top:0">Nur ändern, wenn du weißt, was du tust.</p>
+
+        <h3>Technischer Status</h3>
+        <div class="tech">
+          <div><span>WLAN</span><b id="t-wifi">–</b></div>
+          <div><span>Adresse</span><b id="t-ip">–</b></div>
+          <div><span>Spotify-Konto</span><b id="t-spotify">–</b></div>
+          <div><span>Spotify Web API</span><b id="t-api">–</b></div>
+          <div><span>Laufzeit</span><b id="t-uptime">–</b></div>
+          <div><span>Letzter Neustart</span><b id="t-reset">–</b></div>
+          <div><span>Firmware</span><b id="t-fw">–</b></div>
+        </div>
+
+        <h3>Spotify</h3>
+        <label><span>Client ID</span><input type="text" id="spotify_client_id" autocomplete="off"></label>
+        <label><span>Client Secret</span><input type="password" id="spotify_client_secret" autocomplete="new-password"></label>
+        <label><span>Refresh Token</span><input type="password" id="spotify_refresh_token" autocomplete="new-password">
+          <div class="hint">Von <code>tools/get_refresh_token.py</code>. Gespeicherte Werte werden nie angezeigt; leer lassen, um sie zu behalten.</div>
+        </label>
+
+        <h3>WLAN &amp; Gerät</h3>
+        <div class="row">
+          <label><span>WLAN-Name</span><input type="text" id="wifi_ssid" autocomplete="off"></label>
+          <label><span>WLAN-Passwort</span><input type="password" id="wifi_pass" autocomplete="new-password"></label>
+          <label><span>Gerätename (in Spotify)</span><input type="text" id="device_name" maxlength="32"></label>
+          <label><span>Zeitzone (POSIX)</span><input type="text" id="time_zone" autocomplete="off"></label>
+        </div>
+        <div class="hint">Ein neues WLAN verbindet den Wecker neu; danach diese Seite neu laden.</div>
+
+        <h3>Testen</h3>
+        <div class="actions">
+          <button data-test="fallback">Piepton testen</button>
+          <button data-test="snooze">Schlummern</button>
+          <button data-test="stop">Aus</button>
+        </div>
+
+        <h3>Firmware</h3>
+        <p class="hint" style="margin-top:0"><code>firmware/build/kallsup-alarm.bin</code> hochladen. Der Wecker startet neu und
+          kehrt von selbst zur alten Version zurück, wenn die neue nicht innerhalb von 5 Minuten WLAN und Uhrzeit erreicht.</p>
+        <div class="actions">
+          <input type="file" id="fw-file" accept=".bin" aria-label="Firmware-Datei">
+          <button id="fw-upload">Firmware aktualisieren</button>
+        </div>
+        <progress id="fw-progress" max="100" value="0" hidden style="width:100%;margin-top:10px"></progress>
+      </details>
+    </section>
+
+    <div class="savebar">
+      <button class="primary" id="save">Speichern</button>
+      <span id="msg" role="status"></span>
     </div>
-    <div class="hint">Changing Wi-Fi reconnects the device; this page may then need a reload.</div>
-  </section>
-
-  <section>
-    <h2>Test</h2>
-    <div class="actions">
-      <button data-test="alarm">Test alarm now</button>
-      <button data-test="fallback">Test fallback beep</button>
-      <button data-test="snooze">Snooze</button>
-      <button data-test="stop">Stop</button>
-    </div>
-  </section>
-
-  <section>
-    <h2>Firmware</h2>
-    <p class="hint" style="margin-top:0">Running version <b id="fw-version">–</b>. Upload
-      <code>firmware/build/kallsup-alarm.bin</code>; the device restarts and rolls back by itself if the new
-      firmware doesn't reach Wi-Fi and time within 5 minutes.</p>
-    <div class="actions">
-      <input type="file" id="fw-file" accept=".bin" aria-label="Firmware file">
-      <button id="fw-upload">Update firmware</button>
-    </div>
-    <progress id="fw-progress" max="100" value="0" hidden style="width:100%;margin-top:10px"></progress>
-  </section>
-
-  <div class="savebar">
-    <button class="primary" id="save">Save</button>
-    <span id="msg" role="status"></span>
   </div>
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
 // Displayed Mon..Sun; value is the bit for tm_wday (0 = Sunday).
-const DAYS = [['Mo', 1], ['Tu', 2], ['We', 3], ['Th', 4], ['Fr', 5], ['Sa', 6], ['Su', 0]];
+const DAYS = [['Mo', 1], ['Di', 2], ['Mi', 3], ['Do', 4], ['Fr', 5], ['Sa', 6], ['So', 0]];
 const SECRETS = { wifi_pass: 'wifi_pass_set', spotify_client_secret: 'spotify_client_secret_set',
                   spotify_refresh_token: 'spotify_refresh_token_set' };
+// Server validation messages, for the ones a user can run into.
+const ERRORS = [
+  [/needs at least one weekday/, 'Ein eingeschalteter Wecker braucht mindestens einen Tag.'],
+  [/track must look like/, 'Das ist kein Spotify-Link zu einem Lied. In Spotify: ⋯ → Teilen → Link kopieren.'],
+  [/password must be 8-63/, 'Das WLAN-Passwort muss 8 bis 63 Zeichen lang sein.'],
+];
 let alarmCount = 0;
+let settings = null;
+let lastStatus = null;
+let dirty = false;
+let setupMode = false;
 
 function msg(text, cls) { const m = $('msg'); m.textContent = text; m.className = cls || ''; }
+function german(e) {
+  for (const [re, text] of ERRORS) if (re.test(e.message)) return text;
+  return e.message;
+}
+function setDirty(on) {
+  dirty = on;
+  document.body.classList.toggle('dirty', on);
+  if (on) msg('Ungespeicherte Änderungen', 'warn');
+}
 
 async function api(path, body) {
   const opts = body === undefined ? {} : {
@@ -181,37 +301,66 @@ async function api(path, body) {
   return data;
 }
 
+// 24-hour time as two selects: the browser's own time input may show AM/PM.
+// Minutes come in steps of `step`, plus the stored value if it's off that grid.
+function options(count, step, selected) {
+  const values = [];
+  for (let v = 0; v < count; v += step) values.push(v);
+  if (!values.includes(selected)) values.push(selected), values.sort((a, b) => a - b);
+  return values.map(v => `<option value="${v}"${v === selected ? ' selected' : ''}>${String(v).padStart(2, '0')}</option>`).join('');
+}
+
 function renderAlarms(alarms) {
   alarmCount = alarms.length;
   $('alarms').innerHTML = alarms.map((a, i) => `
-    <div class="alarm">
-      <label class="check"><input type="checkbox" id="a${i}-on" ${a.enabled ? 'checked' : ''}> Alarm ${i + 1}</label>
-      <input type="time" id="a${i}-time" aria-label="Alarm ${i + 1} time"
-             value="${String(a.hour).padStart(2, '0')}:${String(a.minute).padStart(2, '0')}">
+    <div class="alarm${a.enabled ? '' : ' off'}" id="a${i}">
+      <div class="alarm-top">
+        <label class="switch" title="Wecker ${i + 1} ein/aus">
+          <input type="checkbox" id="a${i}-on" ${a.enabled ? 'checked' : ''} aria-label="Wecker ${i + 1} ein">
+          <span></span>
+        </label>
+        <span class="time">
+          <select id="a${i}-h" aria-label="Stunde Wecker ${i + 1}">${options(24, 1, a.hour)}</select>:<select
+                  id="a${i}-m" aria-label="Minute Wecker ${i + 1}">${options(60, 5, a.minute)}</select>
+        </span>
+        <span class="alarm-state" id="a${i}-state">${a.enabled ? 'ein' : 'aus'}</span>
+      </div>
       <div class="days">${DAYS.map(([name, bit]) => `
         <label><input type="checkbox" id="a${i}-d${bit}" ${a.weekdays & (1 << bit) ? 'checked' : ''}><span>${name}</span></label>`).join('')}
       </div>
     </div>`).join('');
+  for (let i = 0; i < alarmCount; i++) {
+    $(`a${i}-on`).addEventListener('change', e => {
+      const on = e.target.checked;
+      // Switching on an alarm without days: ring every day rather than refusing to save.
+      if (on && !DAYS.some(([, bit]) => $(`a${i}-d${bit}`).checked)) {
+        for (const [, bit] of DAYS) $(`a${i}-d${bit}`).checked = true;
+      }
+      $(`a${i}`).classList.toggle('off', !on);
+      $(`a${i}-state`).textContent = on ? 'ein' : 'aus';
+    });
+  }
 }
 
 function showGain() {
-  const g = parseFloat($('max_gain').value);
-  $('max_gain_out').textContent = Math.round(g * 100) + ' %';
-  $('gain_hint').className = 'hint' + (g > 0.7 ? ' warn' : '');
+  $('max_gain_out').textContent = Math.round(parseFloat($('max_gain').value) / 0.7 * 100) + ' %';
 }
 
 async function loadSettings() {
   const s = await api('/api/settings');
-  for (const k of ['wifi_ssid', 'time_zone', 'track_uri', 'max_gain', 'fade_in_s', 'snooze_min',
+  settings = s;
+  for (const k of ['wifi_ssid', 'time_zone', 'track_uri', 'fade_in_s', 'snooze_min',
                    'auto_stop_min', 'spotify_client_id', 'device_name']) $(k).value = s[k];
+  $('max_gain').value = Math.min(s.max_gain, 0.7);
   $('repeat_track').checked = s.repeat_track;
   for (const [k, flag] of Object.entries(SECRETS)) {
     $(k).value = '';
-    $(k).placeholder = s[flag] ? '•••••• (set)' : 'not set';
+    $(k).placeholder = s[flag] ? '•••••• (gespeichert)' : 'nicht gesetzt';
   }
   $('title').textContent = s.device_name;
   renderAlarms(s.alarms);
   showGain();
+  setDirty(false);
 }
 
 // Accepts spotify:track:ID or an open.spotify.com/track/ID link.
@@ -227,7 +376,6 @@ function collect() {
     time_zone: $('time_zone').value.trim(),
     track_uri: normaliseTrack($('track_uri').value),
     repeat_track: $('repeat_track').checked,
-    max_gain: parseFloat($('max_gain').value),
     fade_in_s: parseInt($('fade_in_s').value, 10),
     snooze_min: parseInt($('snooze_min').value, 10),
     auto_stop_min: parseInt($('auto_stop_min').value, 10),
@@ -235,9 +383,12 @@ function collect() {
     device_name: $('device_name').value.trim(),
     alarms: [],
   };
+  // Only send the volume if it was moved: a cap set above 70 % elsewhere stays.
+  const gain = parseFloat($('max_gain').value);
+  if (gain !== Math.min(settings.max_gain, 0.7)) s.max_gain = gain;
   for (const k of Object.keys(SECRETS)) if ($(k).value) s[k] = $(k).value;
   for (let i = 0; i < alarmCount; i++) {
-    const [h, m] = ($(`a${i}-time`).value || '07:00').split(':').map(Number);
+    const h = parseInt($(`a${i}-h`).value, 10), m = parseInt($(`a${i}-m`).value, 10);
     let mask = 0;
     for (const [, bit] of DAYS) if ($(`a${i}-d${bit}`).checked) mask |= 1 << bit;
     s.alarms.push({ enabled: $(`a${i}-on`).checked, hour: h, minute: m, weekdays: mask });
@@ -247,59 +398,215 @@ function collect() {
 
 async function save() {
   $('save').disabled = true;
-  msg('Saving…');
+  msg('Speichere …');
   try {
     await api('/api/settings', collect());
-    msg('Saved.', 'ok');
     await loadSettings();
+    msg('Gespeichert ✓', 'ok');
     refreshStatus();
   } catch (e) {
-    msg('Not saved: ' + e.message, 'bad');
+    msg('Nicht gespeichert: ' + german(e), 'bad');
   } finally {
     $('save').disabled = false;
   }
 }
 
-async function refreshStatus() {
-  try {
-    const st = await api('/api/status');
-    $('clock').textContent = st.time.slice(11, 16);
-    $('st-time').textContent = st.time_synced ? st.time.slice(0, 16) : 'not synced';
-    $('st-time').className = st.time_synced ? '' : 'bad';
-    $('st-next').textContent = st.next_alarm || (st.time_synced ? 'none' : 'unknown (no time)');
-    const w = st.wifi;
-    $('st-wifi').textContent = w.connected ? `${w.ssid} (${w.rssi} dBm)` : (w.ap_active ? 'setup AP active' : 'not connected');
-    $('st-wifi').className = w.connected ? 'ok' : 'bad';
-    $('st-spotify').textContent = st.spotify.logged_in ? 'logged in'
-      : (st.spotify.api_credentials_set ? 'not logged in' : 'not set up');
-    $('st-spotify').className = st.spotify.logged_in ? 'ok' : 'warn';
-    $('st-api').textContent = st.spotify.api_result || (st.spotify.api_credentials_set ? 'ready' : 'not set up');
-    const states = { idle: 'idle', preparing: 'about to ring', ringing_spotify: 'ringing (Spotify)',
-                     ringing_fallback: 'ringing (beep)', snoozed: 'snoozed' };
-    $('st-alarm').textContent = (states[st.alarm_state] || st.alarm_state)
-      + (st.snoozed_until ? ' until ' + st.snoozed_until : '');
-    $('st-alarm').className = st.alarm_state.startsWith('ringing') ? 'warn' : '';
-    $('fw-version').textContent = `${st.version} (${st.partition}, ${st.ota_state})`;
-  } catch (e) {
-    $('st-wifi').textContent = 'device unreachable';
-    $('st-wifi').className = 'bad';
+function banner(cls, title, text, buttons) {
+  const b = $('banner');
+  b.className = 'banner ' + cls;
+  b.innerHTML = `<b>${title}</b>${text ? `<span>${text}</span>` : ''}` +
+    (buttons ? `<div class="actions">${buttons}</div>` : '');
+}
+
+function showBanner(st) {
+  const ringing = st.alarm_state.startsWith('ringing');
+  if (ringing) {
+    banner('warn', 'Der Wecker klingelt', '',
+      '<button data-test="snooze">Schlummern</button><button class="primary" data-test="stop">Aus</button>');
+  } else if (st.alarm_state === 'snoozed') {
+    banner('info', `Schlummert bis ${st.snoozed_until || '…'}`, 'Danach klingelt der Wecker nochmal.',
+      '<button class="primary" data-test="stop">Wecker aus</button>');
+  } else if (!st.wifi.connected) {
+    banner('bad', 'Kein WLAN', 'Ohne Internet kennt der Wecker die Uhrzeit nicht und klingelt nicht. Ist der Router an?');
+  } else if (!st.time_synced) {
+    banner('warn', 'Uhrzeit wird geholt …', 'Einen Moment bitte.');
+  } else if (!st.spotify.logged_in) {
+    banner('warn', 'Spotify ist nicht verbunden', 'Der Wecker piept statt Musik. Hilft es nicht, den Stecker kurz zu ziehen: bitte melden.');
+  } else if (settings && !settings.track_uri) {
+    banner('warn', 'Kein Lied gewählt', 'Der Wecker piept statt Musik. Unten bei „Lied“ einen Spotify-Link einfügen.');
+  } else if (st.next_alarm) {
+    banner('ok', `Nächster Wecker: ${st.next_alarm}`, 'Alles bereit.');
+  } else {
+    banner('info', 'Kein Wecker eingeschaltet', 'Unten bei einem Wecker den Schalter einschalten und speichern.');
   }
 }
 
-document.querySelectorAll('[data-test]').forEach(b => b.addEventListener('click', async () => {
+function showTech(st) {
+  const w = st.wifi;
+  $('t-wifi').textContent = w.connected ? `${w.ssid} (${w.rssi} dBm)` : (w.ap_active ? 'Einrichtungs-WLAN aktiv' : 'nicht verbunden');
+  $('t-ip').textContent = w.ip || '–';
+  $('t-spotify').textContent = st.spotify.logged_in ? st.spotify.user : 'nicht angemeldet';
+  $('t-api').textContent = st.spotify.api_result || (st.spotify.api_credentials_set ? 'bereit' : 'nicht eingerichtet');
+  const h = Math.floor(st.uptime_s / 3600), m = Math.floor(st.uptime_s % 3600 / 60);
+  $('t-uptime').textContent = h ? `${h} h ${m} min` : `${m} min`;
+  $('t-reset').textContent = st.reset_reason;
+  $('t-reset').className = /crash|watchdog|brownout/.test(st.reset_reason) ? 'bad' : '';
+  $('t-fw').textContent = `${st.version} (${st.partition}, ${st.ota_state})`;
+}
+
+async function refreshStatus() {
+  let st;
   try {
-    await api('/api/test/' + b.dataset.test, {});
-    msg(b.textContent + ': sent.', 'ok');
+    st = await api('/api/status');
   } catch (e) {
-    msg(b.textContent + ': ' + e.message, 'bad');
+    banner('bad', 'Wecker nicht erreichbar', 'Ist das Handy im selben WLAN wie der Wecker? Ist er eingesteckt?');
+    return;
   }
-}));
+  lastStatus = st;
+  $('clock').textContent = st.time_synced ? st.time.slice(11, 16) : '';
+  const wantSetup = st.wifi.ap_active && !st.wifi.connected;
+  if (wantSetup !== setupMode && !setupBusy && !setupDone) enterSetup(wantSetup);
+  if (setupMode) { if (!setupDone) showSetupBanner(st); return; }
+  showBanner(st);
+  showTech(st);
+}
+
+// --- Wi-Fi setup over the setup hotspot ---
+
+let setupBusy = false;  // connecting: stay on the setup card until it worked or failed
+let setupDone = false;  // connected: keep showing how to continue until the hotspot goes away
+
+function enterSetup(on) {
+  setupMode = on;
+  $('setup').hidden = !on;
+  $('app').hidden = on;
+  if (on) scan();
+}
+
+function showSetupBanner(st) {
+  banner('info', 'Willkommen!', 'Verbinde den Wecker einmal mit deinem WLAN zu Hause.');
+}
+
+async function scan() {
+  const sel = $('setup-ssid');
+  sel.innerHTML = '<option value="">Suche WLANs …</option>';
+  $('setup-rescan').disabled = true;
+  let nets = [];
+  for (let attempt = 0; attempt < 3 && !nets.length; attempt++) {
+    try { nets = (await api('/api/wifi/scan')).networks; } catch (e) { await new Promise(r => setTimeout(r, 1500)); }
+  }
+  $('setup-rescan').disabled = false;
+  sel.innerHTML = (nets.length ? '<option value="">Bitte wählen …</option>' : '<option value="">Keine WLANs gefunden</option>') +
+    nets.map(n => `<option value="${encodeURIComponent(n.ssid)}" data-locked="${n.locked}">${escapeHtml(n.ssid)}${n.locked ? '' : ' (offen)'}</option>`).join('') +
+    '<option value="__other">Anderes WLAN …</option>';
+  setupChoice();
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function setupChoice() {
+  const opt = $('setup-ssid').selectedOptions[0];
+  const other = opt && opt.value === '__other';
+  $('setup-other-box').hidden = !other;
+  $('setup-pass-box').hidden = !!opt && opt.dataset.locked === 'false';
+}
+
+function setupResult(cls, html) {
+  const r = $('setup-result');
+  r.hidden = false;
+  r.className = 'result ' + cls;
+  r.innerHTML = html;
+}
+
+async function setupConnect() {
+  const opt = $('setup-ssid').selectedOptions[0];
+  const ssid = opt && opt.value === '__other' ? $('setup-other').value.trim()
+    : opt && opt.value ? decodeURIComponent(opt.value) : '';
+  if (!ssid) { setupResult('bad', 'Bitte zuerst dein WLAN auswählen.'); return; }
+  const open = opt.dataset.locked === 'false';
+  const pass = $('setup-pass').value;
+  if (!open && (pass.length < 8 || pass.length > 63)) {
+    setupResult('bad', 'Das Passwort muss 8 bis 63 Zeichen lang sein. Bitte nochmal prüfen.');
+    return;
+  }
+  setupBusy = true;
+  $('setup-connect').disabled = true;
+  setupResult('wait', 'Verbinde mit <b>' + escapeHtml(ssid) + '</b> … das dauert bis zu 30 Sekunden.');
+  try {
+    await api('/api/settings', { wifi_ssid: ssid, wifi_pass: open ? null : pass });
+  } catch (e) {
+    setupResult('bad', 'Das hat nicht geklappt: ' + escapeHtml(german(e)));
+    setupBusy = false;
+    $('setup-connect').disabled = false;
+    return;
+  }
+  // The device reconnects ~1 s after saving; give it up to 40 s.
+  await new Promise(r => setTimeout(r, 3000));
+  const until = Date.now() + 40000;
+  let st = null;
+  while (Date.now() < until) {
+    try { st = await api('/api/status'); } catch (e) { st = null; }
+    if (st && (st.wifi.connected || st.wifi.error === 'wrong_password' || st.wifi.error === 'not_found')) break;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  $('setup-connect').disabled = false;
+  setupBusy = false;
+  if (st && st.wifi.connected) {
+    setupResult('ok', `<b>Verbunden! ✓</b><br>Verbinde dein Handy jetzt wieder mit <b>${escapeHtml(ssid)}</b> und öffne
+      <span class="addr">kallsup-alarm.local</span>.<br>Klappt das nicht, gib diese Adresse ein: <span class="addr">${st.wifi.ip}</span>
+      <br><span class="hint">Das Einrichtungs-WLAN verschwindet in einer Minute.</span>`);
+    setupDone = true;
+    $('setup-connect').hidden = true;
+    $('setup-rescan').hidden = true;
+    banner('ok', 'Geschafft!', 'Der Wecker ist mit deinem WLAN verbunden.');
+  } else if (st && st.wifi.error === 'wrong_password') {
+    setupResult('bad', '<b>Passwort falsch.</b> Bitte nochmal eingeben – auf Groß- und Kleinschreibung achten.');
+  } else if (st && st.wifi.error === 'not_found') {
+    setupResult('bad', '<b>WLAN nicht gefunden.</b> Steht der Wecker zu weit vom Router weg? „WLANs neu suchen“ tippen.');
+  } else if (!st) {
+    setupResult('bad', 'Dein Handy hat die Verbindung zum Wecker verloren. Verbinde es wieder mit „Kallsup-Setup“ und lade die Seite neu.');
+  } else {
+    setupResult('bad', 'Noch nicht verbunden. Bitte Passwort prüfen und nochmal „Verbinden“ tippen.');
+  }
+}
+
+$('setup-ssid').addEventListener('change', setupChoice);
+$('setup-rescan').addEventListener('click', scan);
+$('setup-connect').addEventListener('click', setupConnect);
+$('setup-show').addEventListener('click', () => {
+  const p = $('setup-pass');
+  p.type = p.type === 'password' ? 'text' : 'password';
+  $('setup-show').textContent = p.type === 'password' ? 'Zeigen' : 'Verbergen';
+});
+
+// --- buttons ---
+
+const TEST_NAMES = { alarm: 'Wecker-Test', fallback: 'Piepton-Test', snooze: 'Schlummern', stop: 'Aus' };
+async function runTest(name) {
+  try {
+    await api('/api/test/' + name, {});
+    msg(TEST_NAMES[name] + ' ✓', 'ok');
+    setTimeout(refreshStatus, 600);
+  } catch (e) {
+    msg(TEST_NAMES[name] + ': ' + e.message, 'bad');
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-test]');
+  if (b) runTest(b.dataset.test);
+});
+$('test-alarm').addEventListener('click', () => runTest('alarm'));
 $('save').addEventListener('click', save);
+$('app').addEventListener('input', e => { if (!e.target.closest('#fw-file')) setDirty(true); });
+$('app').addEventListener('change', e => { if (!e.target.closest('#fw-file')) setDirty(true); });
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 // XHR instead of fetch: it reports upload progress.
 $('fw-upload').addEventListener('click', () => {
   const file = $('fw-file').files[0];
-  if (!file) { msg('Choose a .bin file first.', 'bad'); return; }
+  if (!file) { msg('Zuerst eine .bin-Datei wählen.', 'bad'); return; }
   const xhr = new XMLHttpRequest();
   const bar = $('fw-progress');
   xhr.open('POST', '/api/ota');
@@ -309,24 +616,23 @@ $('fw-upload').addEventListener('click', () => {
     let data = {};
     try { data = JSON.parse(xhr.responseText); } catch (e) {}
     if (xhr.status === 200) {
-      msg(`Firmware ${data.version} installed, restarting… reload in ~20 s.`, 'ok');
+      msg(`Firmware ${data.version} installiert, startet neu … in ~20 s neu laden.`, 'ok');
     } else {
-      msg('Update failed: ' + (data.error || xhr.statusText), 'bad');
+      msg('Update fehlgeschlagen: ' + (data.error || xhr.statusText), 'bad');
     }
     $('fw-upload').disabled = false;
   };
-  xhr.onerror = () => { msg('Update failed: connection lost.', 'bad'); $('fw-upload').disabled = false; };
+  xhr.onerror = () => { msg('Update fehlgeschlagen: Verbindung verloren.', 'bad'); $('fw-upload').disabled = false; };
   bar.hidden = false;
   bar.value = 0;
   $('fw-upload').disabled = true;
-  msg('Uploading firmware…');
+  msg('Lade Firmware hoch …');
   xhr.send(file);
 });
 $('max_gain').addEventListener('input', showGain);
 
-loadSettings().catch(e => msg('Could not load settings: ' + e.message, 'bad'));
-refreshStatus();
-setInterval(refreshStatus, 5000);
+loadSettings().catch(e => msg('Einstellungen nicht geladen: ' + e.message, 'bad')).then(refreshStatus);
+setInterval(() => { if (!setupBusy) refreshStatus(); }, 5000);
 </script>
 </body>
 </html>
