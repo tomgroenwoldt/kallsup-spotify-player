@@ -86,7 +86,11 @@ For whoever builds and prepares the clock. Do the steps in order. Steps 1–3 ar
 
 ### 1. Hardware
 
-Follow [`docs/WIRING.md`](docs/WIRING.md). In short:
+Follow [`docs/WIRING.md`](docs/WIRING.md). The perfboard layout shows where every part and wire goes:
+
+<p align="center"><img src="hardware/enclosure/out/perfboard_layout.png" width="720" alt="Perfboard layout: 3D view and to-scale top view with every wire"></p>
+
+In short:
 
 1. Move the Kallsup speaker from the board's **P2** connector to the MAX98357A **OUT+ / OUT−**. Never connect either output to GND.
 2. Measure Kallsup pad **VCC_5V**: ≈5 V with USB, ≈0 V without. Only if both hold, use it to power the ESP32 5V pin and the amp VIN. Otherwise power from the devkit USB port.

@@ -13,6 +13,12 @@ Hardware setup for the Kallsup Spotify Alarm Clock. See `PLAN.md` section 1 for 
 | 2 push buttons (optional) | Snooze / Stop |
 | USB-C power supply, ≥1 A | |
 
+## Perfboard layout
+
+![Perfboard layout: 3D view and to-scale top view with every wire](../hardware/enclosure/out/perfboard_layout.png)
+
+The 50 × 70 mm perfboard that sits in the base (`hardware/enclosure/`). Left: 3D view, with the devkit drawn lifted off its female headers. Right: top view to scale, in mm from the front-left corner; each wire has its own colour, and dashed lines run on the underside. The buttons and the speaker reach the board through the 6-pin JST-XH connector. Regenerate it in `hardware/enclosure/` with `python render_perfboard.py . out/perfboard_layout.png` (needs build123d, pyvista and matplotlib).
+
 ## Diagram
 
 ```
