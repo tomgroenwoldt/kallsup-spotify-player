@@ -4,6 +4,53 @@ Turns an IKEA KALLSUP speaker into a stand-alone alarm clock that plays one spec
 
 Requires **Spotify Premium**. Design and phase plan: [`PLAN.md`](PLAN.md).
 
+## User guide
+
+For the person using the clock. Everything technical (Spotify keys, the song, pairing) is set up beforehand, see [Building and setup](#building-and-setup). A German, printable version of this guide is on the device at `http://kallsup-alarm.local/anleitung`.
+
+<p align="center"><img src="docs/img/guide/clock.svg" width="200" alt="The Kallsup speaker on its base"></p>
+
+### Setting up (once)
+
+1. **Plug the USB cable into the back of the speaker and the power adapter into the wall. Wait 2 minutes.**
+   The clock first looks for a Wi-Fi it knows. If it finds none, it opens its own.
+
+   <img src="docs/img/guide/plug-in.svg" width="260" alt="USB cable into the socket on the back of the speaker">
+2. **Connect your phone to the Wi-Fi “Kallsup-Setup”.** There's no password. If the phone warns about “no internet”, choose **stay connected**.
+3. **The setup page opens by itself.** If it doesn't, open `http://192.168.4.1` in the browser.
+4. **Pick your Wi-Fi, enter its password, tap “Verbinden” (connect).** After about 20 seconds a green **“Verbunden!”** appears. If it says the password is wrong (“Passwort falsch”), just enter it again.
+5. **Put your phone back on your normal Wi-Fi and open the clock's page:** `http://kallsup-alarm.local`, best saved as a bookmark. If that doesn't open, use the number address shown after “Verbunden!”, or `http://kallsup-alarm.fritz.box` with a FRITZ!Box.
+
+Done. After moving house or getting a new router, start again at step 1.
+
+### Setting an alarm
+
+1. Open the clock's page (`kallsup-alarm.local`).
+2. Switch an alarm on, pick the time and tap the days.
+3. Tap **“Speichern”** (save). The top of the page then shows when the next alarm rings.
+
+### The two buttons
+
+<p align="center"><img src="docs/img/guide/buttons.svg" width="300" alt="Snooze is the left button, Stop the right one"></p>
+
+| | Snooze (left) | Stop (right) |
+|---|---|---|
+| **Alarm ringing** | <img src="docs/img/guide/snooze-1.svg" height="36" alt="1×"> ring again later | <img src="docs/img/guide/stop-1.svg" height="36" alt="1×"> alarm off |
+| **Music playing** | <img src="docs/img/guide/snooze-1.svg" height="36" alt="1×"> pause / play<br><img src="docs/img/guide/snooze-2.svg" height="36" alt="2×"> next song<br><img src="docs/img/guide/snooze-3.svg" height="36" alt="3×"> previous song | <img src="docs/img/guide/stop-1.svg" height="36" alt="1×"> louder<br><img src="docs/img/guide/stop-2.svg" height="36" alt="2×"> quieter<br><img src="docs/img/guide/stop-hold.svg" height="36" alt="hold"> louder until you let go<br><img src="docs/img/guide/stop-1-hold.svg" height="36" alt="1× + hold"> quieter until you let go |
+
+2× and 3× mean: press quickly in a row. To play music, tap the speaker icon in the Spotify app and choose “Kallsup Alarm”.
+
+### Problems?
+
+**Almost always helps:** unplug, wait 10 seconds, plug back in, wait 2 minutes.
+
+| Problem | What to do |
+|---|---|
+| It beeps instead of playing music | Spotify or the internet wasn't reachable. The beep is on purpose, so you still wake up. |
+| The page says “Kein WLAN” (no Wi-Fi) | Is the router on? Otherwise set it up again (step 1). Without Wi-Fi the alarm doesn't ring. |
+| The page doesn't open | Is the phone on the same Wi-Fi as the clock? Try the number address from step 5. |
+| Too loud or too quiet | Change “Weckerlautstärke” (alarm volume) on the clock's page. |
+
 ## Status
 
 | Phase | Content | State |
@@ -33,9 +80,9 @@ Requires **Spotify Premium**. Design and phase plan: [`PLAN.md`](PLAN.md).
 
 ---
 
-## Setup
+## Building and setup
 
-Do the steps in order. Steps 1–3 are needed right away; 4–6 apply once the matching firmware phases are done.
+For whoever builds and prepares the clock. Do the steps in order. Steps 1–3 are needed right away; 4–6 apply once the matching firmware phases are done.
 
 ### 1. Hardware
 

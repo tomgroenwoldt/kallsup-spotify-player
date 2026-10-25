@@ -34,8 +34,9 @@ ol.steps > li::before {
   display: flex; align-items: center; justify-content: center;
   print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
-ol.compact > li { padding-top: 8px; padding-bottom: 8px; }
-ol.compact > li::before { top: 8px; }
+/* One-line steps: tall enough for the number, which sits centred (also in print). */
+ol.steps.compact > li { padding-top: 8px; padding-bottom: 8px; min-height: 50px; display: flex; align-items: center; }
+ol.steps.compact > li::before { top: 50%; transform: translateY(-50%); }
 .step { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; min-height: 32px; }
 .step > div:first-child { padding-top: 4px; }
 .step p, ol.steps p { margin: 0; }

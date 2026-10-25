@@ -1,4 +1,5 @@
-"""Builds firmware/main/www/anleitung.html, the printable German user guide.
+"""Builds firmware/main/www/anleitung.html, the printable German user guide,
+and the English drawings for the README's user guide (docs/img/guide/).
 
 Fills anleitung.tpl.html with the line drawings from sketches.py and QR codes
 from qrencode (must be installed). Run after changing either:
@@ -13,7 +14,23 @@ from pathlib import Path
 import sketches
 
 HERE = Path(__file__).parent
-OUT = HERE.parent.parent / "firmware/main/www/anleitung.html"
+ROOT = HERE.parent.parent
+OUT = ROOT / "firmware/main/www/anleitung.html"
+IMG = ROOT / "docs/img/guide"
+
+# Standalone SVG files for the README, with English labels.
+README_IMAGES = {
+    "clock": lambda: sketches.hero(),
+    "plug-in": lambda: sketches.plug_in(),
+    "buttons": lambda: sketches.buttons("Snooze", "Stop"),
+    "snooze-1": lambda: sketches.press("play", "1×"),
+    "snooze-2": lambda: sketches.press("play", "2×"),
+    "snooze-3": lambda: sketches.press("play", "3×"),
+    "stop-1": lambda: sketches.press("bt", "1×"),
+    "stop-2": lambda: sketches.press("bt", "2×"),
+    "stop-hold": lambda: sketches.press("bt", "hold"),
+    "stop-1-hold": lambda: sketches.press("bt", "1× + hold"),
+}
 
 QR = {
     "QR_WIFI": "WIFI:S:Kallsup-Setup;T:nopass;;",
@@ -54,6 +71,13 @@ def main():
         raise SystemExit(f"unfilled placeholders: {missing}")
     OUT.write_text(html)
     print(f"wrote {OUT} ({len(html)} bytes)")
+
+    # As <img> on GitHub: white background, or the black lines vanish in dark mode.
+    IMG.mkdir(parents=True, exist_ok=True)
+    for name, draw in README_IMAGES.items():
+        svg = draw().replace("<svg ", '<svg style="background:#fff" ', 1)
+        (IMG / f"{name}.svg").write_text(svg + "\n")
+    print(f"wrote {len(README_IMAGES)} drawings to {IMG}")
 
 
 if __name__ == "__main__":

@@ -162,7 +162,7 @@ def plug_in():
 BOX_W = 124
 
 
-def buttons():
+def buttons(snooze="Schlummern", stop="Aus"):
     """Top of the Kallsup with callouts naming the two buttons."""
     clock = assembly()
     # Callout boxes above the clock, each over its own button, so lines don't cross.
@@ -173,7 +173,7 @@ def buttons():
     gap = 10
     mid = (min(xs) + max(xs)) / 2
     boxes = {"play": (mid - gap / 2 - BOX_W, by), "bt": (mid + gap / 2, by)}
-    labels = {"play": "Schlummern", "bt": "Aus"}
+    labels = {"play": snooze, "bt": stop}
     parts = [clock]
     for name, (bx, by) in boxes.items():
         tx, ty = tops[name]
@@ -190,7 +190,7 @@ def buttons():
             f'font-family="system-ui,sans-serif" font-size="12" font-weight="700">{labels[name]}</text>'
         )
     pts = corners() + [(boxes["play"][0], by), (boxes["bt"][0] + BOX_W, by)]
-    return svg("".join(parts), bounds(pts, 4), 300, "Links der Schlummern-Knopf, rechts der Aus-Knopf")
+    return svg("".join(parts), bounds(pts, 4), 300, f"{snooze} (links), {stop} (rechts)")
 
 
 def press(symbol, label):
