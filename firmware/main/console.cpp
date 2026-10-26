@@ -113,7 +113,7 @@ static int cmd_wifi(int argc, char **argv) {
         const std::string ssid = settings::get().wifi_ssid;
         printf("not connected (stored SSID: %s)\n", ssid.empty() ? "none" : ssid.c_str());
     }
-    printf("setup AP \"%s\": %s\n", net::AP_SSID, st.ap_active ? "on" : "off");
+    printf("setup AP \"%s\": %s, password %s\n", net::AP_SSID, st.ap_active ? "on" : "off", net::setup_password());
     return 0;
 }
 

@@ -16,7 +16,7 @@ For the person using the clock. Everything technical (Spotify keys, the song, pa
    The clock first looks for a Wi-Fi it knows. If it finds none, it opens its own.
 
    <img src="docs/img/guide/plug-in.svg" width="260" alt="USB cable into the socket on the back of the speaker">
-2. **Connect your phone to the Wi-Fi “Kallsup-Setup”.** There's no password. If the phone warns about “no internet”, choose **stay connected**.
+2. **Connect your phone to the Wi-Fi “Kallsup-Setup”.** Scan the code on the **sticker under the clock** with the phone's camera, or tap “Kallsup-Setup” in the Wi-Fi settings and type the password from the sticker. If the phone warns about “no internet”, choose **stay connected**.
 3. **The setup page opens by itself.** If it doesn't, open `http://192.168.4.1` in the browser.
 4. **Pick your Wi-Fi, enter its password, tap “Verbinden” (connect).** After about 20 seconds a green **“Verbunden!”** appears. If it says the password is wrong (“Passwort falsch”), just enter it again.
 5. **Put your phone back on your normal Wi-Fi and open the clock's page:** `http://kallsup-alarm.local`, best saved as a bookmark. If that doesn't open, use the number address shown after “Verbunden!”, or `http://kallsup-alarm.fritz.box` with a FRITZ!Box.
@@ -135,11 +135,14 @@ git submodule update --init --recursive
 
 cd kallsup-alarm/firmware
 idf.py set-target esp32s3        # first time only; reads sdkconfig.defaults
+espsecure.py generate_signing_key --version 2 --scheme rsa3072 ota_signing_key.pem   # first time only
 idf.py build
 idf.py -p /dev/ttyACM0 flash monitor
 ```
 
 Exit the monitor with `Ctrl+]`. If the port isn't found, hold **BOOT**, tap **RST**, release BOOT, and retry. Use the devkit port labelled **USB** (native) or **UART/COM**; both work for flashing.
+
+`ota_signing_key.pem` signs every build; OTA updates only accept images signed with it (see [Firmware updates](#firmware-updates-ota)). It is git-ignored. **Back it up** (e.g. in your password manager): without it, a clock that is already set up can only be updated over USB.
 
 After changing `sdkconfig.defaults`, delete `firmware/sdkconfig` (or run `idf.py fullclean`) so the new defaults apply.
 
@@ -161,7 +164,7 @@ An error line about PSRAM means the board isn't an N16R8 or octal mode isn't act
 | `heap` | Free internal / PSRAM heap |
 | `ring` / `snooze` / `stop` | Ring the alarm now, snooze it, stop it |
 | `alarm` | Alarm state and next alarm |
-| `wifi ["ssid" "password"]` | Show Wi-Fi status, or store credentials and reconnect |
+| `wifi ["ssid" "password"]` | Show Wi-Fi status and the setup Wi-Fi password, or store credentials and reconnect |
 | `time` | Local time and whether NTP has synced |
 | `tz [POSIX TZ]` | Show or set the time zone (default `CET-1CEST,M3.5.0,M10.5.0/3`) |
 | `spotify [forget]` | Spotify login status; `forget` erases the stored login and restarts |
@@ -193,7 +196,7 @@ You can also pass `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment v
 
 ### 6. Configure the device (from Phase 3 on)
 
-1. On first boot without Wi-Fi credentials (or if Wi-Fi fails for 60 s), the device opens an access point **`Kallsup-Setup`**. Join it and browse to `http://192.168.4.1`.
+1. On first boot without Wi-Fi credentials (or if Wi-Fi fails for 60 s), the device opens an access point **`Kallsup-Setup`**. Its WPA2 password is random for each device, made on first boot and kept in NVS. The boot log shows it once (`new setup Wi-Fi password: …`), and the `wifi` console command shows it any time. Join it and browse to `http://192.168.4.1`.
 2. Enter Wi-Fi SSID and password. After it joins your network, the page is at <http://kallsup-alarm.local>.
 3. Enter:
    - Spotify client ID, client secret, refresh token (shown later only as "set" / "not set").
@@ -207,8 +210,9 @@ You can also pass `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment v
 The web page and the printable guide are in German, for a non-technical user who only connects it to their own Wi-Fi.
 
 1. Do steps 4–6 yourself, then pair with the Spotify account that will own the alarm, set the track and an alarm.
-2. Print the guide: open <http://kallsup-alarm.local/anleitung> → **Drucken** (2 × A4). The same page is linked from the web page under *Hilfe*. It is generated: edit `tools/guide/anleitung.tpl.html` or the line drawings in `tools/guide/sketches.py`, then run `python3 tools/guide/build_guide.py` (needs `qrencode`).
-3. Unplug and hand over. At their place the stored Wi-Fi fails, so after 60 s the setup AP `Kallsup-Setup` opens. Its captive portal brings up a Wi-Fi picker on the phone by itself (DNS answers every name with 192.168.4.1, unknown paths redirect to `/`). After a successful connection the page shows the new address, and the AP stays up for 60 s more so the user can read it.
+2. Print the setup Wi-Fi sticker and stick it under the base: `python3 tools/guide/build_guide.py --sticker <password>` writes `tools/guide/sticker.html` (a QR code that joins the hotspot, plus the password; git-ignored). Print it at 100 %.
+3. Print the guide: open <http://kallsup-alarm.local/anleitung> → **Drucken** (2 × A4). The same page is linked from the web page under *Hilfe*. It is generated: edit `tools/guide/anleitung.tpl.html` or the line drawings in `tools/guide/sketches.py`, then run `python3 tools/guide/build_guide.py` (needs `qrencode`).
+4. Unplug and hand over. At their place the stored Wi-Fi fails, so after 60 s the setup AP `Kallsup-Setup` opens. Its captive portal brings up a Wi-Fi picker on the phone by itself (DNS answers every name with 192.168.4.1, unknown paths redirect to `/`). After a successful connection the page shows the new address, and the AP stays up for 60 s more so the user can read it.
 
 Technical settings (Spotify keys, Wi-Fi fields, device name, time zone, beep test, firmware upload) are under *Erweitert* at the bottom of the web page.
 
@@ -241,9 +245,10 @@ If your board's LED stays dark, it may be on GPIO 38. Change `STATUS_LED` in `fi
 ### Firmware updates (OTA)
 
 1. Build with `idf.py build`.
-2. On the web page under *Erweitert → Firmware*, upload `firmware/build/kallsup-alarm.bin`. The device restarts; the new version is shown with `(ota_x, pending verify)`, then `valid` once Wi-Fi and time work.
+2. On the web page under *Erweitert → Firmware*, upload `firmware/build/kallsup-alarm.bin`. It must be signed with `ota_signing_key.pem` (the build does that); other images are refused with `invalid or unsigned image`. `kallsup-alarm-unsigned.bin` is refused too. The device restarts; the new version is shown with `(ota_x, pending verify)`, then `valid` once Wi-Fi and time work.
 3. If the new firmware doesn't reach Wi-Fi and time within 5 minutes, it restarts and the bootloader rolls back to the previous version.
-4. Updates are refused while an alarm rings. A USB flash (`idf.py flash`) always works as a fallback.
+4. Updates are refused while an alarm rings. A USB flash (`idf.py flash`) always works as a fallback, also without the key.
+5. Firmware from before signed updates accepts any image. Its first signed update is the last unchecked one.
 
 ### Self-healing
 
@@ -267,9 +272,14 @@ cspot is GPLv3, so firmware built with it is a GPLv3 work. Distributing the firm
 
 Never commit Wi-Fi passwords, the Spotify client secret or refresh tokens. They live only in the device's NVS. `.gitignore` excludes `sdkconfig`, build output and `secrets*` files.
 
-- **No login on the web page:** anyone on your home network can change settings, ring or stop alarms and **upload firmware**. Secrets are never sent to the browser. POSTs require `application/json` or `application/octet-stream`, so other websites can't trigger them through your browser (CORS preflight). Keep the device on a network you trust.
-- **Setup AP:** `Kallsup-Setup` is an open network. It only appears while Wi-Fi isn't connected.
+- **No login on the web page:** anyone on your home network can change settings and ring or stop alarms. Keep the device on a network you trust (not a guest network). What limits the damage:
+  - **Secrets are never sent to the browser.** The page only shows whether they're set.
+  - **Firmware updates must be signed** with your `ota_signing_key.pem`. Others can't install their own firmware over the network, which would let them read the stored secrets.
+  - **Other websites can't use the API through your browser.** POSTs require `application/json` or `application/octet-stream`, which needs a CORS preflight the device never answers. Every endpoint also checks the `Host` header and serves only IP addresses and the device's own names (`kallsup-alarm`, `.local`, `.fritz.box`, `.lan`, `.home`, `.home.arpa`, `.internal`). That stops DNS rebinding, where a website points its own name at the device to get around CORS. If your router uses another suffix, use `kallsup-alarm.local` or the IP, or add the suffix to `LOCAL_DOMAINS` in `web_ui.cpp`.
+- **Setup AP:** `Kallsup-Setup` uses WPA2 with a random per-device password from the sticker. It appears while Wi-Fi isn't connected (also after 60 s of router downtime), so joining it needs the sticker, not just being nearby. The Wi-Fi scan endpoint only works while it is on.
+- **Spotify pairing:** the device takes a login from the Spotify app only while it waits to be paired (no stored login). Once logged in, nobody else on the network can switch it to their account.
 - **TLS:** all HTTPS connections, including cspot's, verify certificates against ESP-IDF's CA bundle.
+- **Physical access is not protected.** Flash and NVS are not encrypted, and the USB console needs no login. With the clock and a USB cable, anyone can read the Wi-Fi password, the Spotify client secret, the refresh token and the stored Spotify login (`esptool.py read_flash`), or flash other firmware. If that matters, revoke them afterwards: change the Wi-Fi password, remove the app's access in your Spotify account (*Apps*), rotate the client secret in the Spotify developer dashboard. Flash encryption (`CONFIG_SECURE_FLASH_ENC_ENABLED`) plus NVS encryption and hardware secure boot would close this. They burn eFuses permanently and change how USB flashing works, so they're deliberately left off. Read Espressif's *Flash Encryption* and *Secure Boot v2* guides before enabling them.
 
 ## Known risks
 

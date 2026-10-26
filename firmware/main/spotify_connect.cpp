@@ -54,6 +54,7 @@ static std::shared_ptr<cspot::LoginBlob> s_zeroconf_blob;  // its DH key is publ
 static SemaphoreHandle_t s_zeroconf_ready;
 static std::mutex s_zeroconf_mutex;
 static std::map<std::string, std::string> s_zeroconf_query;
+static std::atomic<bool> s_zeroconf_waiting{false};  // logins are only taken while true
 
 static std::atomic<bool> s_logged_in{false};
 static std::atomic<bool> s_active{false};
@@ -200,8 +201,9 @@ static esp_err_t post_spotify_info(httpd_req_t *req) {
         got += r;
     }
     auto query = parse_form(body);
-    if (query["action"] == "addUser" && !query["blob"].empty() && !query["clientKey"].empty() &&
-        !query["userName"].empty()) {
+    // Only while waiting to be paired: once logged in, someone else on the network mustn't take over.
+    if (s_zeroconf_waiting && query["action"] == "addUser" && !query["blob"].empty() &&
+        !query["clientKey"].empty() && !query["userName"].empty()) {
         ESP_LOGI(TAG, "zeroconf login from the Spotify app");
         {
             std::lock_guard<std::mutex> lock(s_zeroconf_mutex);
@@ -457,8 +459,11 @@ static void session_task(void *arg) {
             }
             ESP_LOGI(TAG, "logging in with stored credentials of %s", blob->username.c_str());
         } else {
+            xSemaphoreTake(s_zeroconf_ready, 0);  // drop a login that came in before
+            s_zeroconf_waiting = true;
             advertise_zeroconf(true);
             xSemaphoreTake(s_zeroconf_ready, portMAX_DELAY);
+            s_zeroconf_waiting = false;
             std::map<std::string, std::string> query;
             {
                 std::lock_guard<std::mutex> lock(s_zeroconf_mutex);
@@ -507,18 +512,16 @@ esp_err_t init() {
     ESP_RETURN_ON_FALSE(s_media_queue, ESP_ERR_NO_MEM, TAG, "media queue");
     s_zeroconf_blob = std::make_shared<cspot::LoginBlob>(settings::get().device_name);
 
-    httpd_handle_t server = web_ui::server();
-    ESP_RETURN_ON_FALSE(server, ESP_ERR_INVALID_STATE, TAG, "web_ui not started");
     httpd_uri_t get_info = {};
     get_info.uri = "/spotify_info";
     get_info.method = HTTP_GET;
     get_info.handler = get_spotify_info;
-    ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &get_info), TAG, "GET /spotify_info");
+    ESP_RETURN_ON_ERROR(web_ui::register_route(get_info), TAG, "GET /spotify_info");
     httpd_uri_t add_user = {};
     add_user.uri = "/spotify_info";
     add_user.method = HTTP_POST;
     add_user.handler = post_spotify_info;
-    ESP_RETURN_ON_ERROR(httpd_register_uri_handler(server, &add_user), TAG, "POST /spotify_info");
+    ESP_RETURN_ON_ERROR(web_ui::register_route(add_user), TAG, "POST /spotify_info");
 
     settings::on_change([](const settings::Config &old_cfg, const settings::Config &cfg) {
         if (cfg.max_gain != old_cfg.max_gain) apply_volume();

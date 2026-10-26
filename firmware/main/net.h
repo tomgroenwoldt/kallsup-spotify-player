@@ -2,9 +2,11 @@
 // Wi-Fi (STA + fallback AP), SNTP, mDNS.
 //
 // Connects as a station with the credentials from settings. If none are stored,
-// or there is no connection for 60 s, an open setup AP is started next to the
+// or there is no connection for 60 s, a setup AP is started next to the
 // station, with a captive DNS so phones open the setup page by themselves. It
 // stops 60 s after the station gets an IP, so the setup page can show that.
+// The setup AP uses WPA2 with a random per-device password (on a sticker under
+// the clock): the web API has no login, so the AP mustn't be open to anyone.
 
 #include <string>
 
@@ -14,6 +16,7 @@ namespace net {
 
 constexpr const char *HOSTNAME = "kallsup-alarm";  // kallsup-alarm.local
 constexpr const char *AP_SSID = "Kallsup-Setup";
+constexpr size_t AP_PASS_LEN = 10;
 
 enum class WifiError { NONE, WRONG_PASSWORD, NOT_FOUND, OTHER };
 
@@ -39,5 +42,8 @@ Status status();
 
 // True once SNTP has set the clock since boot.
 bool time_synced();
+
+// The setup AP's WPA2 password, AP_PASS_LEN characters.
+const char *setup_password();
 
 }  // namespace net

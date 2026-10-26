@@ -42,3 +42,14 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
 
 # OTA: a new image that doesn't confirm itself is rolled back on the next boot
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# OTA only accepts app images signed with this key (RSA-3072). The key is not
+# in git: create it once with
+#   espsecure.py generate_signing_key --version 2 --scheme rsa3072 firmware/ota_signing_key.pem
+# and back it up; without it, updates are only possible over USB.
+# No hardware secure boot: USB flashing keeps working, no eFuses are burned.
+CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
+CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y
+CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="ota_signing_key.pem"

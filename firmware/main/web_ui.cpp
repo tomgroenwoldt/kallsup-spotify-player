@@ -1,6 +1,7 @@
 #include "web_ui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <ctime>
@@ -19,6 +20,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "lwip/sockets.h"
 #include "net.h"
 #include "settings.h"
 #include "spotify_api.h"
@@ -83,6 +85,73 @@ static esp_err_t read_body(httpd_req_t *req, std::string &body) {
     return ESP_OK;
 }
 
+// --- Host check, against DNS rebinding ---
+//
+// A website can point its own name at this device's IP. The browser then treats
+// the page and this API as one origin, and CORS no longer protects it. Such
+// requests carry the website's name in Host, so only IP literals and this
+// device's own names are served.
+
+static const char *LOCAL_DOMAINS[] = {"", ".local", ".fritz.box", ".lan", ".home", ".home.arpa", ".internal"};
+
+static bool host_allowed(httpd_req_t *req) {
+    const size_t len = httpd_req_get_hdr_value_len(req, "Host");
+    if (len == 0) return true;  // no Host: not a browser
+    if (len > 255) return false;
+    std::string host(len + 1, '\0');
+    if (httpd_req_get_hdr_value_str(req, "Host", host.data(), host.size()) != ESP_OK) return false;
+    host.resize(len);
+    for (char &c : host) c = tolower(static_cast<unsigned char>(c));
+    if (host[0] == '[') return host.find(']') != std::string::npos;  // IPv6 literal
+    host.resize(std::min(host.size(), host.find(':')));               // drop the port
+    if (!host.empty() && host.back() == '.') host.pop_back();
+    in_addr ip4;
+    if (inet_pton(AF_INET, host.c_str(), &ip4) == 1) return true;
+    for (const char *suffix : LOCAL_DOMAINS) {
+        if (host == std::string(net::HOSTNAME) + suffix) return true;
+    }
+    return false;
+}
+
+// "http://<the address this request came in on>/", e.g. http://192.168.4.1/
+// on the setup AP.
+static std::string own_url(httpd_req_t *req) {
+    sockaddr_in6 addr = {};
+    socklen_t addr_len = sizeof(addr);
+    char ip[INET6_ADDRSTRLEN] = "";
+    if (getsockname(httpd_req_to_sockfd(req), reinterpret_cast<sockaddr *>(&addr), &addr_len) == 0) {
+        if (addr.sin6_family == AF_INET) {
+            inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in *>(&addr)->sin_addr, ip, sizeof(ip));
+        } else if (addr.sin6_family == AF_INET6) {
+            static const uint8_t V4_MAPPED[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+            const uint8_t *b = addr.sin6_addr.s6_addr;
+            if (memcmp(b, V4_MAPPED, sizeof(V4_MAPPED)) == 0) {
+                inet_ntop(AF_INET, b + 12, ip, sizeof(ip));
+            } else if (inet_ntop(AF_INET6, b, ip, sizeof(ip))) {
+                return std::string("http://[") + ip + "]/";
+            }
+        }
+    }
+    if (!ip[0]) return std::string("http://") + net::HOSTNAME + ".local/";
+    return std::string("http://") + ip + "/";
+}
+
+static esp_err_t redirect(httpd_req_t *req, const std::string &location) {
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", location.c_str());
+    return httpd_resp_sendstr(req, "Weiter zur Einrichtung: <a href=\"/\">Kallsup Wecker</a>");
+}
+
+// Every route's handler, see register_route(). The real one is in user_ctx.
+static esp_err_t guarded(httpd_req_t *req) {
+    const auto handler = reinterpret_cast<esp_err_t (*)(httpd_req_t *)>(req->user_ctx);
+    if (host_allowed(req)) return handler(req);
+    ESP_LOGW(TAG, "refused %s: foreign Host header", req->uri);
+    // A page on another name (a captive-portal check, say) moves to our address.
+    if (req->method == HTTP_GET && strncmp(req->uri, "/api/", 5) != 0) return redirect(req, own_url(req));
+    return send_error(req, "403 Forbidden", "unknown host name");
+}
+
 static std::string format_local(time_t t, const char *fmt) {
     struct tm tm;
     localtime_r(&t, &tm);
@@ -127,16 +196,17 @@ static esp_err_t get_guide(httpd_req_t *req) {
 }
 
 // Anything else, e.g. a phone's captive-portal check on the setup AP, goes to
-// the main page. iOS only shows the portal if the response has a body.
+// the main page, by address if it came in under a foreign name. iOS only shows
+// the portal if the response has a body.
 static esp_err_t redirect_404(httpd_req_t *req, httpd_err_code_t) {
-    httpd_resp_set_status(req, "302 Found");
-    httpd_resp_set_hdr(req, "Location", "/");
-    return httpd_resp_sendstr(req, "Weiter zur Einrichtung: <a href=\"/\">Kallsup Wecker</a>");
+    return redirect(req, host_allowed(req) ? "/" : own_url(req));
 }
 
 // --- GET /api/wifi/scan ---
 
+// Only for the setup page: a scan blocks this server for ~2 s.
 static esp_err_t get_wifi_scan(httpd_req_t *req) {
+    if (!net::status().ap_active) return send_error(req, "409 Conflict", "only while the setup Wi-Fi is on");
     wifi_scan_config_t scan = {};
     esp_err_t err = esp_wifi_scan_start(&scan, true);  // blocks ~2 s
     if (err != ESP_OK) {
@@ -380,8 +450,13 @@ static void restart_soon() {
     esp_timer_start_once(timer, 1000 * 1000);  // let the response go out first
 }
 
+#if !CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT && !CONFIG_SECURE_BOOT
+#error "OTA must only accept signed images: set CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT (see sdkconfig.defaults)"
+#endif
+
 // Firmware upload: the raw .bin as application/octet-stream. That content type
 // needs a CORS preflight, so other websites can't post one through a browser.
+// esp_ota_end() only accepts images signed with our key.
 static esp_err_t post_ota(httpd_req_t *req) {
     char type[64];
     if (httpd_req_get_hdr_value_str(req, "Content-Type", type, sizeof(type)) != ESP_OK ||
@@ -418,9 +493,9 @@ static esp_err_t post_ota(httpd_req_t *req) {
         esp_ota_abort(ota);
         return send_error(req, "400 Bad Request", std::string("upload failed: ") + esp_err_to_name(err));
     }
-    err = esp_ota_end(ota);  // verifies the image checksum
+    err = esp_ota_end(ota);  // verifies the checksum and signature
     if (err != ESP_OK) {
-        return send_error(req, "400 Bad Request", std::string("invalid image: ") + esp_err_to_name(err));
+        return send_error(req, "400 Bad Request", std::string("invalid or unsigned image: ") + esp_err_to_name(err));
     }
     esp_app_desc_t desc;
     if (esp_ota_get_partition_description(part, &desc) != ESP_OK || strcmp(desc.project_name, PROJECT_NAME) != 0) {
@@ -487,7 +562,7 @@ esp_err_t init() {
         {.uri = "/api/ota", .method = HTTP_POST, .handler = post_ota, .user_ctx = nullptr},
     };
     for (const httpd_uri_t &route : routes) {
-        ESP_RETURN_ON_ERROR(httpd_register_uri_handler(s_server, &route), TAG, "route %s", route.uri);
+        ESP_RETURN_ON_ERROR(register_route(route), TAG, "route %s", route.uri);
     }
     ESP_RETURN_ON_ERROR(httpd_register_err_handler(s_server, HTTPD_404_NOT_FOUND, redirect_404), TAG, "404");
     ESP_LOGI(TAG, "listening on port %d", config.server_port);
@@ -496,6 +571,14 @@ esp_err_t init() {
 
 httpd_handle_t server() {
     return s_server;
+}
+
+esp_err_t register_route(const httpd_uri_t &route) {
+    ESP_RETURN_ON_FALSE(s_server && !route.user_ctx, ESP_ERR_INVALID_ARG, TAG, "register_route");
+    httpd_uri_t wrapped = route;
+    wrapped.handler = guarded;
+    wrapped.user_ctx = reinterpret_cast<void *>(route.handler);
+    return httpd_register_uri_handler(s_server, &wrapped);
 }
 
 }  // namespace web_ui

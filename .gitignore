@@ -9,6 +9,8 @@ secrets*
 *.secret
 .env
 tools/*.token
+*.pem
+tools/guide/sticker*.html
 
 # Personal recordings
 *.mp3

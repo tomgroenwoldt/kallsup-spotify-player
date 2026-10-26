@@ -5,8 +5,17 @@ Fills anleitung.tpl.html with the line drawings from sketches.py and QR codes
 from qrencode (must be installed). Run after changing either:
 
     python3 tools/guide/build_guide.py
+
+The setup Wi-Fi's password differs per device (the `wifi` console command shows
+it), so it isn't in the guide but on a sticker under the clock. To print one:
+
+    python3 tools/guide/build_guide.py --sticker <password>
+
+This writes tools/guide/sticker.html (git-ignored: it holds the password).
 """
 
+import argparse
+import html
 import re
 import subprocess
 from pathlib import Path
@@ -32,8 +41,10 @@ README_IMAGES = {
     "stop-1-hold": lambda: sketches.press("bt", "1× + hold"),
 }
 
+AP_SSID = "Kallsup-Setup"
+STICKER = HERE / "sticker.html"
+
 QR = {
-    "QR_WIFI": "WIFI:S:Kallsup-Setup;T:nopass;;",
     "QR_AP": "http://192.168.4.1",
     "QR_HOME": "http://kallsup-alarm.local",
 }
@@ -49,7 +60,37 @@ def qr(text):
     return re.sub(r">\s+<", "><", svg).strip()
 
 
+def sticker(password):
+    """A 40 mm label: QR code that joins the setup Wi-Fi, plus the password."""
+    code = qr(f"WIFI:S:{AP_SSID};T:WPA;P:{password};;")
+    page = f"""<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Kallsup Aufkleber</title>
+<style>
+@page {{ margin: 10mm; }}
+body {{ margin: 0; font: 9pt/1.3 system-ui, sans-serif; color: #000; background: #fff; }}
+.label {{ width: 40mm; padding: 2mm; border: 0.3mm dashed #999; text-align: center; }}
+.label svg {{ width: 30mm; height: 30mm; display: block; margin: 0 auto 1mm; }}
+.pass {{ font: bold 11pt ui-monospace, monospace; letter-spacing: 0.5pt; }}
+</style></head><body><div class="label">
+{code}
+<div>WLAN <b>{AP_SSID}</b></div>
+<div>Passwort <span class="pass">{html.escape(password)}</span></div>
+</div></body></html>
+"""
+    STICKER.write_text(page)
+    print(f"wrote {STICKER}: print at 100 %, cut out, stick under the clock")
+
+
 def main():
+    args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    args.add_argument("--sticker", metavar="PASSWORD", help="only write the setup Wi-Fi sticker")
+    password = args.parse_args().sticker
+    if password is not None:
+        if not re.fullmatch(r"[a-z2-9]{10}", password):
+            raise SystemExit("expected the 10-character password from the `wifi` console command")
+        sticker(password)
+        return
+
     parts = {key: qr(text) for key, text in QR.items()}
     parts.update(
         HERO=sketches.hero(),

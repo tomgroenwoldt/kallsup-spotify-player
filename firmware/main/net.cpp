@@ -11,10 +11,12 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "captive_dns.h"
 #include "esp_wifi.h"
 #include "mdns.h"
+#include "nvs.h"
 #include "settings.h"
 
 namespace net {
@@ -43,6 +45,36 @@ static std::atomic<bool> s_have_creds{false};
 static std::atomic<bool> s_time_synced{false};
 static std::atomic<WifiError> s_error{WifiError::NONE};  // of the last failed attempt
 static uint64_t s_retry_us = RETRY_MIN_US;  // next back-off delay, event task only
+static char s_ap_pass[AP_PASS_LEN + 1];  // set once in init()
+
+// The setup AP's WPA2 password: random, made on first boot and kept in NVS, so
+// it can go on a sticker. Needs the RF on for true random numbers.
+static void load_ap_password() {
+    // No 0/o, 1/l/i: it is read off a sticker.
+    static const char ALPHABET[] = "abcdefghjkmnpqrstuvwxyz23456789";
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open("net", NVS_READWRITE, &nvs);
+    if (err == ESP_OK) {
+        size_t len = sizeof(s_ap_pass);
+        if (nvs_get_str(nvs, "ap_pass", s_ap_pass, &len) == ESP_OK && strlen(s_ap_pass) == AP_PASS_LEN) {
+            nvs_close(nvs);
+            return;
+        }
+    }
+    for (size_t i = 0; i < AP_PASS_LEN; i++) s_ap_pass[i] = ALPHABET[esp_random() % (sizeof(ALPHABET) - 1)];
+    s_ap_pass[AP_PASS_LEN] = '\0';
+    if (err == ESP_OK) {
+        err = nvs_set_str(nvs, "ap_pass", s_ap_pass);
+        if (err == ESP_OK) err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err == ESP_OK) {
+        ESP_LOGW(TAG, "new setup Wi-Fi password: %s (put it on the sticker)", s_ap_pass);
+    } else {
+        ESP_LOGE(TAG, "storing the setup Wi-Fi password failed (%s), it only lasts until reboot",
+                 esp_err_to_name(err));
+    }
+}
 
 static void start_ap() {
     if (s_ap_active) return;
@@ -52,12 +84,14 @@ static void start_ap() {
     ap.ap.ssid_len = len;
     ap.ap.channel = 1;
     ap.ap.max_connection = 2;
-    ap.ap.authmode = WIFI_AUTH_OPEN;
+    memcpy(ap.ap.password, s_ap_pass, AP_PASS_LEN);
+    ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_set_config(WIFI_IF_AP, &ap));
     s_ap_active = true;
     captive_dns::start();
-    ESP_LOGW(TAG, "no Wi-Fi connection, started setup AP \"%s\" (http://192.168.4.1)", AP_SSID);
+    ESP_LOGW(TAG, "no Wi-Fi connection, started setup AP \"%s\", password %s (http://192.168.4.1)", AP_SSID,
+             s_ap_pass);
 }
 
 static void stop_ap() {
@@ -215,6 +249,7 @@ esp_err_t init() {
     ESP_RETURN_ON_ERROR(esp_wifi_set_mode(WIFI_MODE_STA), TAG, "wifi mode");
     s_have_creds = load_sta_config();
     ESP_RETURN_ON_ERROR(esp_wifi_start(), TAG, "wifi start");
+    load_ap_password();
     // Power save adds 100+ ms latency spikes; streaming needs steady throughput.
     ESP_RETURN_ON_ERROR(esp_wifi_set_ps(WIFI_PS_NONE), TAG, "wifi ps");
     if (s_have_creds) {
@@ -270,6 +305,10 @@ Status status() {
 
 bool time_synced() {
     return s_time_synced;
+}
+
+const char *setup_password() {
+    return s_ap_pass;
 }
 
 }  // namespace net
