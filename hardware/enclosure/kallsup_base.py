@@ -7,22 +7,32 @@ through a grommet in the lid and a matching 8 mm hole drilled into the Kallsup
 bottom. Inside, a perfboard carrier holds the devkit in female headers plus the
 amp, the bulk cap and a JST-XH connector. See docs/WIRING.md.
 
+A 0.96" OLED (26 x 26 mm module) looks out of a window in the front wall. It
+slides into two rails on the wall's inside from below, before the plate goes on;
+the rails' lips hold it against the wall, a stop under the lid ends the slide,
+and the perfboard below keeps it from dropping out. Its glass sits in a 1 mm
+pocket in the wall. A 4-pin JST-XH on the back at the top edge; there's room
+above the board for it and room behind it for the plug.
+
 The Kallsup's four feet sit in shallow pockets in the lid. To reach the
 devkit's BOOT/RST buttons, lift the Kallsup off and poke through the lid holes.
 
 Measured: Kallsup 70 x 70, feet 8.3 mm, devkit 65 x 28 with buttons and LED
-positions, pins 8 mm below the PCB (3 mm spacer), amp 17.5 x 19, cap 10 x 17.5.
+positions, pins 8 mm below the PCB (3 mm spacer), amp 17.5 x 19, cap 10 x 17.5,
+OLED PCB 26 x 26, glass 24.7 x 17.6.
 Still assumed: Kallsup corner radius, header row spacing (0.9"), female header
 height (8.5 mm), USB-C positions on the devkit end, foot spacing measured over
-the outer edges.
+the outer edges, OLED glass thickness, position and lit area (typical 0.96" panel).
 
 Parts (print orientation):
   shell   - upside down, lid on the bed, no supports
   plate   - flat, posts up
   grommet - flange down
   lid_test - just the lid (pockets + holes), quick fit check on the Kallsup
+  oled_test - the front wall around the OLED window with its rails, front face
+              down; slide the module in to check the fit before printing the shell
 
-Assembly: 4x M2.5 heat-set inserts (4 mm long) into the shell bosses, 4x M2.5x5 screws
+Assembly: 4x M3 heat-set inserts (6 mm long, 5 mm OD) into the shell bosses, 4x M3x6 screws
 through the plate; the 50 x 70 perfboard on the plate posts through its own
 corner holes (3 mm, 65 x 45 mm apart) with 4x M2.5x6 self-tapping screws.
 
@@ -56,7 +66,7 @@ CORNER_R = 0.0  # outer corner radius; 0 = sharp corners
 WALL = 2.0
 LID_T = 2.0
 PLATE_T = 2.0
-TOTAL_H = 29.0  # plate + shell
+TOTAL_H = 43.0  # plate + shell; tall enough for the OLED standing behind the front wall
 TOP_FILLET = 0.0  # 0 = sharp top edge
 
 SHELL_Z0 = PLATE_T  # shell sits on the plate
@@ -88,18 +98,18 @@ FOOT_Y = (FOOT_SPAN_Y - FOOT_D) / 2  # relative to the Kallsup centre
 BOSS_R = 3.75
 BOSS_X = INNER_X / 2 - BOSS_R + 0.25  # reaches 0.25 mm into the side walls
 BOSS_Y = INNER_Y / 2 - BOSS_R + 0.25  # and into the front/back walls
-INSERT_D = 3.6  # M2.5 heat-set insert hole
-INSERT_DEPTH = 5.0
-SCREW_CLEAR_D = 2.9
-SCREW_HEAD_D = 5.2
+INSERT_D = 4.2  # M3 heat-set insert, 6 mm long, 5 mm OD
+INSERT_DEPTH = 7.0  # 1 mm deeper than the insert, for displaced plastic
+SCREW_CLEAR_D = 3.4
+SCREW_HEAD_D = 6.2  # M3 pan or socket head
 SCREW_HEAD_DEPTH = 1.4
 
 # --- Perfboard mounting ------------------------------------------------------
 PERF_CX, PERF_CY = 0.0, 0.0
-POST_H = 4.0  # room for solder joints under the board
+POST_H = 7.0  # room for solder joints and wiring under the board
 POST_R = 3.0
 POST_PILOT_D = 2.2  # M2.5 self-tapping into PLA
-POST_PILOT_DEPTH = 5.0  # 1 mm into the plate
+POST_PILOT_DEPTH = 5.0  # the M2.5x6 screw reaches 4.4 mm into the post
 PERF_SCREW_HEAD_D, PERF_SCREW_HEAD_H = 4.6, 1.8  # M2.5 pan head, on top of the perfboard
 PERF_Z = PLATE_T + POST_H  # underside of the perfboard
 
@@ -141,10 +151,31 @@ CAP_CY = -1.0
 JST_W, JST_L, JST_H = 17.4, 5.75, 7.0  # 6-pin JST-XH, vertical
 JST_CY = 17.5
 
+# --- OLED (behind the front wall, centred, pins at the top) -----------------
+OLED_W, OLED_H, OLED_PCB_T = 26.0, 26.0, 1.6  # PCB, x and z
+OLED_BACK_PARTS = 1.0  # tallest part on the PCB's back, outside the header
+GLASS_W, GLASS_H, GLASS_T = 24.7, 17.6, 1.45  # measured; thickness assumed
+GLASS_TOP = 3.5  # glass top edge below the PCB's top edge, assumed
+AA_W, AA_H = 21.74, 10.86  # lit area, centred left-right
+AA_TOP = 5.0  # lit area top edge below the PCB's top edge, assumed
+WINDOW_MARGIN = 1.0  # window beyond the lit area, each side, covers the guesses above
+GLASS_POCKET = 1.0  # glass sunk this far into the 2 mm wall
+GLASS_CLEAR = 0.3  # pocket beyond the glass, each side
+OLED_CLEAR = 0.3  # rails beyond the PCB/glass, each side and behind
+OLED_SLIDE = 3.0  # extra room above the PCB, for the JST connector
+OLED_SLOT = 3.0  # wall face to the lips; 2.35 was too tight on the test print
+OLED_JST_W, OLED_JST_D, OLED_JST_H = 12.5, 7.0, 6.0  # 4-pin JST-XH, vertical, on the back at the top edge
+OLED_PLUG_D = 12.0  # mated plug and wire bend behind the connector
+OLED_LIP = 1.2  # lips overlap the PCB's side edges from behind
+RAIL_W, LIP_T = 1.6, 1.4
+OLED_Z = PLATE_T + POST_H + PERF_T + 0.8  # PCB bottom edge, just above the perfboard
+OLED_TOP = OLED_Z + OLED_H
+FRONT_IN_Y = -OUTER_Y / 2 + WALL  # inside face of the front wall
+GLASS_FRONT_Y = FRONT_IN_Y - GLASS_POCKET
+OLED_PCB_Y = GLASS_FRONT_Y + GLASS_T  # PCB front face
+OLED_BACK_Y = OLED_PCB_Y + OLED_PCB_T  # PCB back face
+
 # --- Openings ---------------------------------------------------------------
-USB_SLOT_W, USB_SLOT_H = 26.0, 8.0
-USB_SLOT_CX = DEV_CX
-USB_SLOT_CZ = DEV_Z + DEV_T + 1.6  # centre of the USB-C receptacles
 
 CABLE_X, CABLE_Y = 14.0, KALLSUP_CY  # harness through the lid, above the amp side
 GROMMET_OD = 7.6  # fits an 8 mm hole in the lid and in the Kallsup bottom
@@ -207,10 +238,39 @@ def make_shell():
             BUTTON_HOLE_D / 2, LID_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN)
         )
 
-    # USB-C slot in the back wall
-    slot = extrude(RectangleRounded(USB_SLOT_W, USB_SLOT_H, 2.0), WALL + 2)
-    shell -= Pos(USB_SLOT_CX, OUTER_Y / 2 + 1, USB_SLOT_CZ) * Rot(90, 0, 0) * slot
+    shell = add_oled_mount(shell)
+    return shell
 
+
+def add_oled_mount(shell):
+    # Window and glass pocket
+    win_cz = OLED_TOP - AA_TOP - AA_H / 2
+    win = Box(AA_W + 2 * WINDOW_MARGIN, WALL + 2, AA_H + 2 * WINDOW_MARGIN)
+    shell -= Pos(0, FRONT_IN_Y - WALL / 2, win_cz) * win
+    glass_cz = OLED_TOP - GLASS_TOP - GLASS_H / 2
+    pocket = Box(GLASS_W + 2 * GLASS_CLEAR, GLASS_POCKET + 0.01, GLASS_H + 2 * GLASS_CLEAR,
+                 align=(Align.CENTER, Align.MIN, Align.CENTER))
+    shell -= Pos(0, GLASS_FRONT_Y, glass_cz) * pocket
+
+    # Rails with lips behind the PCB's side edges, from the perfboard up to the lid
+    slot_half = max(OLED_W, GLASS_W) / 2 + OLED_CLEAR
+    lip_y = FRONT_IN_Y + OLED_SLOT
+    rail_z0 = PLATE_T + POST_H + PERF_T + 0.3
+    for sx in (-1, 1):
+        rail_x = sx * (slot_half + RAIL_W / 2)
+        shell += box_at(RAIL_W, lip_y + LIP_T - FRONT_IN_Y + 0.01, LID_Z - rail_z0 + 0.01,
+                        rail_x, (FRONT_IN_Y + lip_y + LIP_T) / 2 - 0.005, rail_z0)
+        lip_w = slot_half - (OLED_W / 2 - OLED_LIP)
+        lip_x = sx * (slot_half - lip_w / 2)
+        shell += box_at(lip_w + 0.01, LIP_T, LID_Z - rail_z0 + 0.01, lip_x, lip_y + LIP_T / 2, rail_z0)
+        # Stop under the lid, in front of the lip
+        stop_z = OLED_TOP + OLED_CLEAR + OLED_SLIDE
+        shell += box_at(lip_w + 0.01, lip_y - FRONT_IN_Y + 0.01, LID_Z - stop_z + 0.01,
+                        lip_x, (FRONT_IN_Y + lip_y) / 2, stop_z)
+    # The devkit's antenna end passes just behind the left lip: trim it there
+    dev_front = DEV_CY - DEV_L / 2
+    dev_top = DEV_Z + DEV_T + 3.2  # module shield
+    shell -= box_at(DEV_W + 1.0, 10.0, dev_top - DEV_Z + 1.0, DEV_CX, dev_front - 0.5 + 5.0, DEV_Z - 0.5)
     return shell
 
 
@@ -290,6 +350,15 @@ def make_electronics():
     cap = Rot(90, 0, 0) * Cylinder(CAP_D / 2, CAP_H)
     parts["cap"] = Pos(AMP_CX, CAP_CY, hz + CAP_D / 2) * cap
     parts["jst"] = box_at(JST_W, JST_L, JST_H, AMP_CX, JST_CY, hz)
+    parts["oled_glass"] = box_at(GLASS_W, GLASS_T, GLASS_H, 0, GLASS_FRONT_Y + GLASS_T / 2,
+                                 OLED_TOP - GLASS_TOP - GLASS_H)
+    parts["oled_pcb"] = box_at(OLED_W, OLED_PCB_T, OLED_H, 0, OLED_PCB_Y + OLED_PCB_T / 2, OLED_Z)
+    parts["oled_back_parts"] = box_at(OLED_W - 2 * OLED_LIP - 1.0, OLED_BACK_PARTS, OLED_H - 6.0, 0,
+                                      OLED_BACK_Y + OLED_BACK_PARTS / 2, OLED_Z)
+    parts["oled_jst"] = box_at(OLED_JST_W, OLED_JST_D, OLED_JST_H, 0, OLED_BACK_Y + OLED_JST_D / 2,
+                               OLED_TOP - OLED_JST_H + 3.0)
+    parts["oled_plug"] = box_at(OLED_JST_W, OLED_PLUG_D, OLED_JST_H, 0,
+                                OLED_BACK_Y + OLED_JST_D + OLED_PLUG_D / 2, OLED_TOP - OLED_JST_H + 3.0)
     for i, (x, y) in enumerate(POSTS):
         parts[f"screw_{i}"] = Pos(x, y, hz) * Cylinder(
             PERF_SCREW_HEAD_D / 2, PERF_SCREW_HEAD_H, align=(Align.CENTER, Align.CENTER, Align.MIN)
@@ -351,6 +420,14 @@ def main():
     lid_t = FOOT_POCKET_DEPTH + FOOT_FLOOR
     lid = shell & box_at(OUTER_X + 2, OUTER_Y + 2, lid_t + 1, 0, 0, TOTAL_H - lid_t)
     export_stl(Rot(180, 0, 0) * lid, str(OUT_DIR / "lid_test.stl"))
+    test_x = max(OLED_W, GLASS_W) + 2 * (OLED_CLEAR + RAIL_W + 3.0)
+    test_y = WALL + OLED_SLOT + LIP_T + 0.5
+    test_z0 = PLATE_T + POST_H + PERF_T - 1.0
+    oled_test = shell & box_at(test_x, test_y, TOTAL_H - test_z0, 0, -OUTER_Y / 2 + test_y / 2, test_z0)
+    export_stl(Rot(90, 0, 0) * oled_test, str(OUT_DIR / "oled_test.stl"))
+    bb = oled_test.bounding_box()
+    print(f"oled_test valid={oled_test.is_valid} vol={oled_test.volume:7.1f} mm^3  "
+          f"bbox {bb.size.X:.1f} x {bb.size.Z:.1f} x {bb.size.Y:.1f} (as printed)")
 
     for p in printed:
         bb = p.bounding_box()

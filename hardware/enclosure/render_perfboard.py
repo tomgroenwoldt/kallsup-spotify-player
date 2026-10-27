@@ -56,6 +56,8 @@ colors = {
 pl = pv.Plotter(off_screen=True, window_size=(1400, 1300))
 pl.set_background("white")
 for name, solid in elec_real.items():
+    if name.startswith("oled"):
+        continue  # stands in the front wall, not on the perfboard
     lifted = name in ("devkit", "module", "led") or name.startswith(("usb", "button"))
     c = colors.get(name)
     if c is None:
@@ -139,11 +141,12 @@ ax2.annotate("LED", (lx, ly), xytext=(12, ly + 6), fontsize=7, color="#1f3d7a",
              arrowprops=dict(arrowstyle="-", color="#1f3d7a", lw=0.8))
 
 # J1 labels (standard DevKitC-1; verify on your board)
-j1 = {5: "GPIO5", 6: "GPIO6", 7: "GPIO7", 12: "GPIO8", 15: "GPIO9", 16: "GPIO10",
-      21: "5V", 22: "GND"}
+j1 = {1: "3V3", 5: "GPIO5", 6: "GPIO6", 7: "GPIO7", 12: "GPIO8", 15: "GPIO9", 16: "GPIO10",
+      17: "GPIO11", 18: "GPIO12", 21: "5V", 22: "GND"}
 for n, lab in j1.items():
     ax2.text(row_r - 1.8, pin_y(n), lab, ha="right", va="center", fontsize=7.5,
              fontweight="bold", color="#b00020" if lab in ("5V",) else "#111")
+ax2.text(row_l + 1.8, pin_y(1), "GND", ha="left", va="center", fontsize=7.5, fontweight="bold", color="#111")
 ax2.text(row_r, hdr_y0 - 1.6, "J1", ha="center", va="top", fontsize=9, fontweight="bold")
 ax2.text(row_l, hdr_y0 - 1.6, "J3", ha="center", va="top", fontsize=9, fontweight="bold")
 
@@ -234,6 +237,25 @@ for n, lab, c in i2s:
     wire([(row_r, y), (amp_x[lab], y), (amp_x[lab], amp_pin_y)], c)
 wire([(jst_x["S1"], jy), (jst_x["S1"], jy0 + k.JST_L + 1.4), (28.5, jy0 + k.JST_L + 1.4), (28.5, pin_y(15)), (row_r, pin_y(15))], "#8c564b")
 wire([(jst_x["S2"], jy), (jst_x["S2"], jy0 + k.JST_L + 2.2), (29.2, jy0 + k.JST_L + 2.2), (29.2, pin_y(16)), (row_r, pin_y(16))], "#e377c2")
+# OLED cable: comes down beside the devkit's right edge, through four holes, then
+# on the underside to the header pins
+oled_x = x0 + 11 * 2.54  # first hole column right of J1
+oled_holes = {lab: 1.27 + (3 + i) * 2.54 for i, lab in enumerate(["GND", "VCC", "SCL", "SDA"])}
+for lab, y in oled_holes.items():
+    ax2.add_patch(Circle((oled_x, y), 0.6, fc="#d4af37", ec="#444", lw=0.8, zorder=7))
+OLED_C = {"GND": BLK, "VCC": "#e6550d", "SCL": "#bcbd22", "SDA": "#393b79"}
+wire([(oled_x, oled_holes["GND"]), (oled_x - 1.3, oled_holes["GND"]), (oled_x - 1.3, pin_y(1) - 1.0),
+      (row_l, pin_y(1) - 1.0), (row_l, pin_y(1))], OLED_C["GND"], 1.4)
+wire([(oled_x, oled_holes["VCC"]), (oled_x - 0.6, oled_holes["VCC"]), (oled_x - 0.6, pin_y(1)),
+      (row_r, pin_y(1))], OLED_C["VCC"], 1.4)
+for lab, n, wx in (("SCL", 18, row_r + 1.3), ("SDA", 17, row_r + 0.8)):
+    wire([(oled_x, oled_holes[lab]), (wx, oled_holes[lab]), (wx, pin_y(n)), (row_r, pin_y(n))],
+         OLED_C[lab], 1.4)
+ax2.annotate("OLED cable\n(from above, beside\nthe devkit)", (oled_x + 0.6, oled_holes["SCL"]),
+             xytext=(k.PERF_W + 3, 13), fontsize=7, color="#393b79", va="center",
+             arrowprops=dict(arrowstyle="-", color="#393b79", lw=0.8))
+
+
 def top_wire(pts, color):
     xs, ys = zip(*pts)
     ax2.plot(xs, ys, ls="-", color=color, lw=1.6, zorder=6)
@@ -253,12 +275,14 @@ legend = [Line2D([], [], ls="--", color=c, lw=lw, label=l) for c, lw, l in [
     ("#1f77b4", 1.8, "GPIO5 → BCLK"), ("#ff7f0e", 1.8, "GPIO6 → LRC"),
     ("#2ca02c", 1.8, "GPIO7 → DIN"), ("#9467bd", 1.8, "GPIO8 → SD"),
     ("#8c564b", 1.8, "S1 → GPIO9 (Snooze)"), ("#e377c2", 1.8, "S2 → GPIO10 (Stop)"),
+    ("#e6550d", 1.4, "OLED VCC → 3V3"), (BLK, 1.4, "OLED GND → GND (J3)"),
+    ("#bcbd22", 1.4, "OLED SCL → GPIO12"), ("#393b79", 1.4, "OLED SDA → GPIO11"),
     ]]
 legend += [Line2D([], [], ls="-", color="#17becf", lw=1.6, label="SPK+ → OUT+ (top side)"),
            Line2D([], [], ls="-", color="#0b7285", lw=1.6, label="SPK− → OUT− (top side)")]
 ax2.legend(handles=legend, loc="upper left", bbox_to_anchor=(1.0, 1.0), fontsize=8, frameon=False)
 ax2.text(k.PERF_W / 2, -4.5, "FRONT (Kallsup grille)", ha="center", fontsize=9, fontweight="bold")
-ax2.text(k.PERF_W / 2, k.PERF_L + 5.5, "BACK (USB-C slot)", ha="center", fontsize=9, fontweight="bold")
+ax2.text(k.PERF_W / 2, k.PERF_L + 5.5, "BACK", ha="center", fontsize=9, fontweight="bold")
 ax2.text(k.PERF_W + 3, 4, "J1 pinout = standard\nESP32-S3-DevKitC-1.\nAmp pin order varies\nbetween breakouts.\nCheck your labels.",
          fontsize=7.5, color="#555", va="bottom")
 ax2.set_xticks(range(0, int(k.PERF_W) + 1, 10)); ax2.set_yticks(range(0, int(k.PERF_L) + 1, 10))
