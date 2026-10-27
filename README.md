@@ -38,7 +38,15 @@ Done. After moving house or getting a new router, start again at step 1.
 | **Alarm ringing** | <img src="docs/img/guide/snooze-1.svg" height="36" alt="1×"> ring again later | <img src="docs/img/guide/stop-1.svg" height="36" alt="1×"> alarm off |
 | **Music playing** | <img src="docs/img/guide/snooze-1.svg" height="36" alt="1×"> pause / play<br><img src="docs/img/guide/snooze-2.svg" height="36" alt="2×"> next song<br><img src="docs/img/guide/snooze-3.svg" height="36" alt="3×"> previous song | <img src="docs/img/guide/stop-1.svg" height="36" alt="1×"> louder<br><img src="docs/img/guide/stop-2.svg" height="36" alt="2×"> quieter<br><img src="docs/img/guide/stop-hold.svg" height="36" alt="hold"> louder until you let go<br><img src="docs/img/guide/stop-1-hold.svg" height="36" alt="1× + hold"> quieter until you let go |
 
-2× and 3× mean: press quickly in a row. To play music, tap the speaker icon in the Spotify app and choose “Kallsup Alarm”.
+2× and 3× mean: press quickly in a row. A press also wakes the screen from the face. To play music, tap the speaker icon in the Spotify app and choose “Kallsup Alarm”.
+
+### The display
+
+The screen in the front of the base shows the time, the clock's address (IP), the Wi-Fi, the next alarm and the song that's playing.
+
+After 30 seconds without anything happening, a face takes over: it blinks and looks around, smiles and bobs along while music plays, and sleeps at night. A button press or a new song brings the information back. While the alarm rings, or while Wi-Fi or the time is missing, the information stays.
+
+On the clock's page under **“Display”**: brightness, the face on or off, after how many seconds it appears, when it sleeps, and **“Display einschalten”** (display on) to switch the screen off completely.
 
 ### Problems?
 
@@ -97,7 +105,8 @@ In short:
 3. Bulk cap (470–1000 µF) across amp VIN/GND.
 4. I2S: GPIO 5 → BCLK, 6 → LRC, 7 → DIN, 8 → SD.
 5. Optional buttons: GPIO 9 (Snooze) and GPIO 10 (Stop) to GND.
-6. Power supply ≥1 A.
+6. Optional 0.96" OLED (SSD1306, I2C): VCC → 3V3, GND → GND, SDA → GPIO 11, SCL → GPIO 12. It slides into rails behind the window in the base's front wall.
+7. Power supply ≥1 A.
 
 ### 2. Toolchain (ESP-IDF v5.5)
 
@@ -202,6 +211,7 @@ You can also pass `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` as environment v
    - Spotify client ID, client secret, refresh token (shown later only as "set" / "not set").
    - Track URI: in the Spotify app, *Share → Copy Song Link*, then take the ID from `open.spotify.com/track/<ID>` and enter `spotify:track:<ID>`.
    - Alarms (up to 4: time + weekdays), time zone (default Europe/Berlin), volume cap `max_gain` (default 0.6, keep ≤ 0.7), fade-in, snooze and auto-stop minutes.
+   - Display (if fitted): on/off, brightness (default 15 %), the idle face on/off, its delay (default 30 s) and the night hours of the sleepy face (default 22–7).
 4. **Pair once from a phone** (from Phase 5 on): open Spotify, *Connect to a device* → **Kallsup Alarm**, play anything. The device stores its Spotify login and won't need the phone again, even after power loss.
 5. Press **Test alarm now** in the web UI. The track should start on the Kallsup.
 

@@ -185,6 +185,21 @@ details h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; 
     </section>
 
     <section>
+      <h2>Display</h2>
+      <label class="check"><input type="checkbox" id="display_enabled"> Display einschalten</label>
+      <label><span>Helligkeit: <b id="display_brightness_out"></b></span>
+        <input type="range" id="display_brightness" min="1" max="100" step="1">
+      </label>
+      <label class="check"><input type="checkbox" id="face_enabled"> Gesicht zeigen, wenn niemand den Wecker benutzt</label>
+      <div class="row">
+        <label><span>Gesicht nach (Sekunden)</span><input type="number" id="face_after_s" min="5" max="3600" inputmode="numeric"></label>
+        <label><span>Schläft ab (Uhr)</span><input type="number" id="night_start_h" min="0" max="23" inputmode="numeric"></label>
+        <label><span>Schläft bis (Uhr)</span><input type="number" id="night_end_h" min="0" max="23" inputmode="numeric"></label>
+      </div>
+      <div class="hint">Ein Knopfdruck weckt die Anzeige wieder auf. Gleiche Stunden bei „ab“ und „bis“: das Gesicht schläft nie.</div>
+    </section>
+
+    <section>
       <h2>Hilfe</h2>
       <div class="knobs">
         <div class="knob">
@@ -342,6 +357,10 @@ function renderAlarms(alarms) {
   }
 }
 
+function showBrightness() {
+  $('display_brightness_out').textContent = $('display_brightness').value + ' %';
+}
+
 function showGain() {
   $('max_gain_out').textContent = Math.round(parseFloat($('max_gain').value) / 0.7 * 100) + ' %';
 }
@@ -350,7 +369,10 @@ async function loadSettings() {
   const s = await api('/api/settings');
   settings = s;
   for (const k of ['wifi_ssid', 'time_zone', 'track_uri', 'fade_in_s', 'snooze_min',
-                   'auto_stop_min', 'spotify_client_id', 'device_name']) $(k).value = s[k];
+                   'auto_stop_min', 'spotify_client_id', 'device_name', 'face_after_s',
+                   'night_start_h', 'night_end_h', 'display_brightness']) $(k).value = s[k];
+  $('display_enabled').checked = s.display_enabled;
+  $('face_enabled').checked = s.face_enabled;
   $('max_gain').value = Math.min(s.max_gain, 0.7);
   $('repeat_track').checked = s.repeat_track;
   for (const [k, flag] of Object.entries(SECRETS)) {
@@ -360,6 +382,7 @@ async function loadSettings() {
   $('title').textContent = s.device_name;
   renderAlarms(s.alarms);
   showGain();
+  showBrightness();
   setDirty(false);
 }
 
@@ -381,6 +404,12 @@ function collect() {
     auto_stop_min: parseInt($('auto_stop_min').value, 10),
     spotify_client_id: $('spotify_client_id').value.trim(),
     device_name: $('device_name').value.trim(),
+    display_enabled: $('display_enabled').checked,
+    face_enabled: $('face_enabled').checked,
+    face_after_s: parseInt($('face_after_s').value, 10),
+    night_start_h: parseInt($('night_start_h').value, 10),
+    night_end_h: parseInt($('night_end_h').value, 10),
+    display_brightness: parseInt($('display_brightness').value, 10),
     alarms: [],
   };
   // Only send the volume if it was moved: a cap set above 70 % elsewhere stays.
@@ -630,6 +659,7 @@ $('fw-upload').addEventListener('click', () => {
   xhr.send(file);
 });
 $('max_gain').addEventListener('input', showGain);
+$('display_brightness').addEventListener('input', showBrightness);
 
 loadSettings().catch(e => msg('Einstellungen nicht geladen: ' + e.message, 'bad')).then(refreshStatus);
 setInterval(() => { if (!setupBusy) refreshStatus(); }, 5000);

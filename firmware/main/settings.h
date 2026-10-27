@@ -45,6 +45,13 @@ struct Config {
     std::string spotify_refresh_token;  // secret
     // Device
     std::string device_name = "Kallsup Alarm";
+    // Display
+    bool display_enabled = true;   // off: the panel stays dark
+    bool face_enabled = true;      // face instead of the info screen when idle
+    int face_after_s = 30;         // idle time before the face shows
+    int night_start_h = 22;        // sleepy face from this hour ...
+    int night_end_h = 7;           // ... until this one; equal = never
+    int display_brightness = 15;   // percent, 1..100
 };
 
 using Listener = std::function<void(const Config &old_cfg, const Config &new_cfg)>;

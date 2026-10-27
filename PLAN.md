@@ -36,6 +36,7 @@ Pins that must **not** be used on N16R8:
 | GND | GND | GND |
 | Snooze button | GPIO 9 (internal pull-up, active LOW) | — |
 | Stop button | GPIO 10 (internal pull-up, active LOW) | — |
+| OLED SDA / SCL (optional) | GPIO 11 / GPIO 12, module VCC on 3V3 | — |
 | Status LED | onboard RGB, usually GPIO 48 (**check your board**, some use 38) | — |
 
 The firmware downmixes stereo to mono and writes the same signal to both I2S channels. That way the SD pin's channel-select behaviour doesn't matter.

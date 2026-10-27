@@ -85,6 +85,9 @@ static std::atomic<bool> s_depleted{false};
 static std::atomic<bool> s_flushed{false};
 static std::atomic<bool> s_notify_next{true};
 static std::atomic<int> s_start_offset_ms{0};
+// TRACK_INFO arrives while poll_playback() holds s_track_mutex, hence its own mutex.
+static std::mutex s_now_playing_mutex;
+static Track s_now_playing;
 
 // Button commands, run by the session task: cspot isn't thread-safe.
 static QueueHandle_t s_media_queue;
@@ -285,6 +288,8 @@ static void on_event(std::unique_ptr<cspot::SpircHandler::Event> event) {
             const auto &info = std::get<cspot::TrackInfo>(event->data);
             ESP_LOGI(TAG, "now playing: %s - %s (%lu s)", info.artist.c_str(), info.name.c_str(),
                      (unsigned long)(info.duration / 1000));
+            std::lock_guard<std::mutex> lock(s_now_playing_mutex);
+            s_now_playing = {info.name, info.artist};
             break;
         }
         case EventType::FLUSH:
@@ -314,6 +319,10 @@ static void on_event(std::unique_ptr<cspot::SpircHandler::Event> event) {
             s_mark_pending = false;
             s_depleted = false;
             s_active = false;
+            {
+                std::lock_guard<std::mutex> lock(s_now_playing_mutex);
+                s_now_playing = {};
+            }
             break;
     }
 }
@@ -557,6 +566,11 @@ bool active() {
 
 bool remote_paused() {
     return s_remote_paused;
+}
+
+Track now_playing() {
+    std::lock_guard<std::mutex> lock(s_now_playing_mutex);
+    return s_now_playing;
 }
 
 void media(Media cmd) {

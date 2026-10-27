@@ -7,6 +7,7 @@
 #include "audio_out.h"
 #include "buttons.h"
 #include "console.h"
+#include "display.h"
 #include "net.h"
 #include "settings.h"
 #include "spotify_api.h"
@@ -52,6 +53,7 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(buttons::init([](buttons::Button b, buttons::Event ev, int clicks) {
         using spotify_connect::Media;
         const bool alarm_on = alarm_clock::ringing() || alarm_clock::state() == alarm_clock::State::SNOOZED;
+        display::wake();  // and the press still does what it does
         const bool volume = b == buttons::Button::STOP && !alarm_on && spotify_connect::active();
         // Holding steps the volume on; any other hold counts once, as a click.
         if (ev == buttons::Event::REPEAT && !volume) return;
@@ -68,6 +70,7 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(spotify_connect::init());
     ESP_ERROR_CHECK(spotify_api::init());
     ESP_ERROR_CHECK(status_led::init());
+    ESP_ERROR_CHECK(display::init());
     ESP_ERROR_CHECK(console::init());
 
     ESP_LOGI(TAG, "Boot complete");

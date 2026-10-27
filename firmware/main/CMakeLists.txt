@@ -12,11 +12,14 @@ idf_component_register(
         "console.cpp"
         "status_led.cpp"
         "captive_dns.cpp"
+        "display.cpp"
     INCLUDE_DIRS "."
     EMBED_TXTFILES "www/index.html" "www/anleitung.html"
     REQUIRES
         esp_driver_i2s
         esp_driver_gpio
+        esp_driver_i2c
+        esp_lcd
         esp_http_client
         esp_http_server
         esp_https_ota

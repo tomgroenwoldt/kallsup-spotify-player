@@ -35,6 +35,15 @@ bool active();
 // a new playback starts.
 bool remote_paused();
 
+struct Track {
+    std::string name;
+    std::string artist;
+};
+
+// The track being heard, once its first frame was played; empty name if none
+// or another device took over.
+Track now_playing();
+
 enum class Media { PLAY_PAUSE, NEXT, PREVIOUS, VOLUME_UP, VOLUME_DOWN };
 
 // Controls playback like the Spotify app's buttons, while this device is the

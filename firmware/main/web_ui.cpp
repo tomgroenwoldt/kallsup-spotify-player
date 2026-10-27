@@ -262,6 +262,12 @@ static esp_err_t get_settings(httpd_req_t *req) {
     cJSON_AddBoolToObject(root, "spotify_client_secret_set", !c.spotify_client_secret.empty());
     cJSON_AddBoolToObject(root, "spotify_refresh_token_set", !c.spotify_refresh_token.empty());
     cJSON_AddStringToObject(root, "device_name", c.device_name.c_str());
+    cJSON_AddBoolToObject(root, "display_enabled", c.display_enabled);
+    cJSON_AddBoolToObject(root, "face_enabled", c.face_enabled);
+    cJSON_AddNumberToObject(root, "face_after_s", c.face_after_s);
+    cJSON_AddNumberToObject(root, "night_start_h", c.night_start_h);
+    cJSON_AddNumberToObject(root, "night_end_h", c.night_end_h);
+    cJSON_AddNumberToObject(root, "display_brightness", c.display_brightness);
     return send_json(req, root);
 }
 
@@ -330,6 +336,12 @@ static esp_err_t post_settings(httpd_req_t *req) {
     read_secret(root, "spotify_client_secret", c.spotify_client_secret);
     read_secret(root, "spotify_refresh_token", c.spotify_refresh_token);
     read_string(root, "device_name", c.device_name);
+    read_bool(root, "display_enabled", c.display_enabled);
+    read_bool(root, "face_enabled", c.face_enabled);
+    read_int(root, "face_after_s", c.face_after_s);
+    read_int(root, "night_start_h", c.night_start_h);
+    read_int(root, "night_end_h", c.night_end_h);
+    read_int(root, "display_brightness", c.display_brightness);
     cJSON_Delete(root);
 
     std::string error;

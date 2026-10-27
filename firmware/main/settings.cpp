@@ -29,6 +29,12 @@ static const char *K_SP_CLIENT_ID = "sp_client_id";
 static const char *K_SP_SECRET = "sp_secret";
 static const char *K_SP_REFRESH = "sp_refresh";
 static const char *K_DEVICE_NAME = "device_name";
+static const char *K_DISPLAY = "display_on";
+static const char *K_FACE = "face";
+static const char *K_FACE_AFTER = "face_after_s";
+static const char *K_NIGHT_START = "night_start_h";
+static const char *K_NIGHT_END = "night_end_h";
+static const char *K_BRIGHTNESS = "brightness";
 
 static nvs_handle_t s_nvs;
 static std::mutex s_mutex;  // guards s_cfg and NVS writes
@@ -95,6 +101,12 @@ static esp_err_t store(const Config &c) {
     ESP_RETURN_ON_ERROR(nvs_set_str(s_nvs, K_SP_SECRET, c.spotify_client_secret.c_str()), TAG, "sp_secret");
     ESP_RETURN_ON_ERROR(nvs_set_str(s_nvs, K_SP_REFRESH, c.spotify_refresh_token.c_str()), TAG, "sp_refresh");
     ESP_RETURN_ON_ERROR(nvs_set_str(s_nvs, K_DEVICE_NAME, c.device_name.c_str()), TAG, "device_name");
+    ESP_RETURN_ON_ERROR(nvs_set_u8(s_nvs, K_DISPLAY, c.display_enabled), TAG, "display_on");
+    ESP_RETURN_ON_ERROR(nvs_set_u8(s_nvs, K_FACE, c.face_enabled), TAG, "face");
+    ESP_RETURN_ON_ERROR(nvs_set_i32(s_nvs, K_FACE_AFTER, c.face_after_s), TAG, "face_after_s");
+    ESP_RETURN_ON_ERROR(nvs_set_i32(s_nvs, K_NIGHT_START, c.night_start_h), TAG, "night_start_h");
+    ESP_RETURN_ON_ERROR(nvs_set_i32(s_nvs, K_NIGHT_END, c.night_end_h), TAG, "night_end_h");
+    ESP_RETURN_ON_ERROR(nvs_set_i32(s_nvs, K_BRIGHTNESS, c.display_brightness), TAG, "brightness");
     return nvs_commit(s_nvs);
 }
 
@@ -132,6 +144,11 @@ static const char *validate(const Config &c) {
     }
     if (c.spotify_refresh_token.size() > 512) return "Spotify refresh token too long";
     if (c.device_name.empty() || c.device_name.size() > 32) return "device name must be 1-32 characters";
+    if (c.face_after_s < 5 || c.face_after_s > 3600) return "face delay must be 5-3600 s";
+    if (c.night_start_h < 0 || c.night_start_h > 23 || c.night_end_h < 0 || c.night_end_h > 23) {
+        return "night hours must be 0-23";
+    }
+    if (c.display_brightness < 1 || c.display_brightness > 100) return "display brightness must be 1-100 %";
     return nullptr;
 }
 
@@ -153,6 +170,12 @@ esp_err_t init() {
     load_str(K_SP_SECRET, c.spotify_client_secret);
     load_str(K_SP_REFRESH, c.spotify_refresh_token);
     load_str(K_DEVICE_NAME, c.device_name);
+    load_bool(K_DISPLAY, c.display_enabled);
+    load_bool(K_FACE, c.face_enabled);
+    load_int(K_FACE_AFTER, c.face_after_s);
+    load_int(K_NIGHT_START, c.night_start_h);
+    load_int(K_NIGHT_END, c.night_end_h);
+    load_int(K_BRIGHTNESS, c.display_brightness);
     if (const char *err = validate(c)) {
         ESP_LOGE(TAG, "stored settings invalid (%s), using defaults", err);
         c = Config{};
